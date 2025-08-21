@@ -1,0 +1,53 @@
+name: Terraform Infrastructure
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      terraform-action:
+        description: 'Terraform action to perform (plan/apply/destroy)'
+        required: false
+        default: 'apply'
+        type: string
+    outputs:
+      terraform-result:
+        description: "Terraform execution result"
+        value: ${{ jobs.terraform.outputs.result }}
+
+jobs:
+  terraform:
+    name: Terraform Deployment
+    runs-on: ubuntu-latest
+    environment: production
+    outputs:
+      result: ${{ steps.terraform-apply.outcome }}
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Login to AWS
+        uses: aws-actions/configure-aws-credentials@v4.3.1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3.1.2
+        with:
+          terraform_version: 1.5.7
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ./Terraform
+
+      - name: Terraform Plan
+        run: terraform plan
+        working-directory: ./Terraform
+
+      - name: Terraform Apply
+        id: terraform-apply
+        if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
+        run: terraform apply -auto-approve
+        working-directory: ./Terraform

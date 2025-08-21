@@ -1,0 +1,81 @@
+name: CI - Testing and Code Coverage
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      test-result:
+        description: "Test execution result"
+        value: ${{ jobs.code-coverage.outputs.result }}
+
+env:
+  MONGO_URI: ${{ secrets.MONGO_URI }}
+  MONGO_USERNAME: ${{ secrets.MONGO_USERNAME }}
+  MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
+
+jobs:
+  unit-testing:
+    name: Unit Testing
+    strategy:
+      matrix:
+        node-version: [18, 19, 20]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        exclude:
+          - os: windows-latest
+            node-version: 18
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Setup NodeJS Version - ${{ matrix.node-version }}
+        uses: actions/setup-node@v4.4.0
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Unit Testing
+        id: Nodejs-unit-testing-step
+        run: npm test
+
+      - name: Archive Test Result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mocha-Test-Result-${{ matrix.os }}-${{ matrix.node-version }}
+          path: test-results.xml
+          retention-days: 1
+
+  code-coverage:
+    name: Code Coverage
+    needs: unit-testing
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.coverage.outcome }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Setup NodeJS
+        uses: actions/setup-node@v4.4.0
+        with:
+          node-version: 18
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Code Coverage
+        id: coverage
+        continue-on-error: true
+        run: npm run coverage
+
+      - name: Archive Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Coverage-Report
+          path: coverage/
+          retention-days: 1

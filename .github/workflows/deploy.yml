@@ -1,0 +1,97 @@
+name: Kubernetes Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      image-tag:
+        description: 'Docker image tag to deploy'
+        required: false
+        default: 'latest'
+        type: string
+  workflow_call:
+    inputs:
+      image-tag:
+        description: 'Docker image tag to deploy'
+        required: false
+        default: 'latest'
+        type: string
+
+env:
+  MONGO_URI: ${{ secrets.MONGO_URI }}
+  MONGO_USERNAME: ${{ secrets.MONGO_USERNAME }}
+  MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
+
+jobs:
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Login to AWS
+        uses: aws-actions/configure-aws-credentials@v4.3.1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --name otel-cluster --region us-east-1 
+
+      - name: Configure kubectl
+        uses: statsig-io/kubectl-via-eksctl@main
+        env:
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          region: us-east-1
+          cluster: otel-cluster
+
+
+      - name: Create Base64-encoded K8s Secret
+        run: |
+          kubectl apply -f - <<EOF
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: mongo-secrets
+          type: Opaque
+          data:
+            MONGO_URI: $(echo -n "${{ secrets.MONGO_URI }}" | base64)
+            MONGO_USERNAME: $(echo -n "${{ secrets.MONGO_USERNAME }}" | base64)
+            MONGO_PASSWORD: $(echo -n "${{ secrets.MONGO_PASSWORD }}" | base64)
+          EOF
+
+      - name: Generate Deployment YAML with Docker image
+        run: |
+          IMAGE_TAG=${{ inputs.image-tag || github.sha }}
+          envsubst < ./kubernetes/deployment.template.yml > ./kubernetes/deployment.yml
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          IMAGE_TAG: ${{ inputs.image-tag || github.sha }}
+
+      - name: Deploy to EKS
+        run: |
+          kubectl apply -f deployment.yml
+          kubectl apply -f service.yml
+        working-directory: ./kubernetes
+
+        
+
+      - name: Verify Deployment
+        run: |
+          kubectl get pods -l app=solar-system
+          kubectl get services
+          echo "Waiting for deployment to be ready..."
+          kubectl wait --for=condition=available --timeout=300s deployment/solar-system
+          echo "Waiting for container to be running..."
+          kubectl wait --for=condition=Ready --timeout=180s pod -l app=solar-system
+
+      - name: Get Service URL
+        run: |
+          HOSTNAME=$(kubectl get svc solar-system-service -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          echo "Service URL: http://$HOSTNAME:3000"
+        working-directory: ./kubernetes

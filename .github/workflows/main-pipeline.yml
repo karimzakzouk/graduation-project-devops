@@ -1,0 +1,70 @@
+name: Solar System - Main Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip-tests:
+        description: 'Skip CI tests'
+        required: false
+        default: false
+        type: boolean
+      skip-docker:
+        description: 'Skip Docker build'
+        required: false
+        default: false
+        type: boolean
+      skip-terraform:
+        description: 'Skip Terraform deployment'
+        required: false
+        default: false
+        type: boolean
+      skip-deployment:
+        description: 'Skip Kubernetes deployment'
+        required: false
+        default: false
+        type: boolean
+  push:
+    branches:
+      - main
+      - 'feature-branch-A'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  ci:
+    name: Run CI Tests
+    if: ${{ !inputs.skip-tests }}
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
+  docker:
+    name: Build Docker Image
+    if: ${{ !inputs.skip-docker && (success() || inputs.skip-tests) }}
+    needs: [ci]
+    uses: ./.github/workflows/docker.yml
+    secrets: inherit
+    permissions:
+      contents: read
+      packages: write
+    with:
+      push-image: true
+
+  terraform:
+    name: Deploy Infrastructure
+    if: ${{ !inputs.skip-terraform && (success() || (inputs.skip-tests && inputs.skip-docker)) }}
+    needs: [docker]
+    uses: ./.github/workflows/terraform.yml
+    secrets: inherit
+    with:
+      terraform-action: 'apply'
+
+  deploy:
+    name: Deploy Application
+    if: ${{ !inputs.skip-deployment && (success() || (inputs.skip-tests && inputs.skip-docker && inputs.skip-terraform)) }}
+    needs: [terraform, docker]
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
+    with:
+      image-tag: ${{ github.sha }}

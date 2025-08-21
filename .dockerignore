@@ -1,0 +1,87 @@
+# ==========================================
+# Node.js Dependencies and Build Files
+# ==========================================
+node_modules
+npm-debug.log
+.nyc_output
+coverage
+test-results.xml
+
+# ==========================================
+# Git and Version Control
+# ==========================================
+.git
+.gitignore
+.cache
+
+# ==========================================
+# GitHub and CI/CD Files
+# ==========================================
+.github/
+
+# ==========================================
+# Terraform Infrastructure Files
+# ==========================================
+Terraform/
+backend/
+*.tf
+*.tfvars
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+
+# ==========================================
+# Kubernetes Deployment Files
+# ==========================================
+kubernetes/
+*.yml
+*.yaml
+!docker-compose.yml
+
+# ==========================================
+# Environment and Secrets
+# ==========================================
+.env
+.env.*
+.secrets
+.aws/
+*-credentials*
+*.pem
+*.key
+
+# ==========================================
+# Documentation and README
+# ==========================================
+*.md
+!README*.md
+README-secret.md
+
+# ==========================================
+# Development and IDE Files
+# ==========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ==========================================
+# Operating System Files
+# ==========================================
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# Project Specific
+# ==========================================
+solar-system.png
+.talismanrc
+
+# ==========================================
+# Logs and Temporary Files
+# ==========================================
+*.log
+tmp/
+temp/
