@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: solar-system
-          image: ghcr.io/${DOCKER_USERNAME}/solar-system:${IMAGE_TAG}
+          image: ghcr.io/${DOCKER_USERNAME}/graduation-project-devops:${IMAGE_TAG}
           ports:
             - containerPort: 3000
           env:
