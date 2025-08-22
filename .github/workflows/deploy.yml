@@ -26,6 +26,9 @@ jobs:
     name: Deploy to Kubernetes
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      contents: write  # Allow writing to repository
+      actions: read
     
     steps:
       - name: Checkout Repository
@@ -77,4 +80,4 @@ jobs:
           git config --local user.name "GitHub Action"
           git add helm/values.yaml
           git commit -m "Update image tag to ${{ inputs.image-tag || github.sha }}" || exit 0
-          git push
+          git push https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
