@@ -99,6 +99,6 @@ jobs:
 
       - name: Get Service URL
         run: |
-          HOSTNAME=$(kubectl get svc solar-system-service -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-          echo "Service URL: http://$HOSTNAME:3000"
+          HOSTNAME=$(kubectl get svc solar-system-svc -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          echo "Service URL: http://$HOSTNAME"
         working-directory: ./kubernetes

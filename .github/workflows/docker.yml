@@ -63,12 +63,17 @@ jobs:
         run: |
           docker images
           
+          # Debug: Check if secrets are available
+          echo "Checking environment variables:"
+          echo "MONGO_URI length: ${#MONGO_URI}"
+          echo "MONGO_USERNAME: $MONGO_USERNAME"
+          
           # Start the container
           docker run --name solar-system-app -d \
             -p 3000:3000 \
-            -e MONGO_URI=${{ secrets.MONGO_URI }} \
-            -e MONGO_USERNAME=${{ secrets.MONGO_USERNAME }} \
-            -e MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }} \
+            -e MONGO_URI="$MONGO_URI" \
+            -e MONGO_USERNAME="$MONGO_USERNAME" \
+            -e MONGO_PASSWORD="$MONGO_PASSWORD" \
             ghcr.io/${{ secrets.DOCKER_USERNAME }}/graduation-project-devops:${{ github.sha }}
 
           # Wait for container to start
