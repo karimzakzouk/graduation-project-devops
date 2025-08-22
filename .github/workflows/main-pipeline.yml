@@ -45,9 +45,6 @@ jobs:
     needs: [ci]
     uses: ./.github/workflows/docker.yml
     secrets: inherit
-    permissions:
-      contents: read
-      packages: write
     with:
       push-image: true
 
