@@ -8,3 +8,4 @@ image:
 service:
   type: LoadBalancer
   port: 443
+  targetPort: 3000
