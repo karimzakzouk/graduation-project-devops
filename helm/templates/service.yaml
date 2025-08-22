@@ -3,9 +3,9 @@ kind: Service
 metadata:
   name: {{ .Release.Name }}-svc
 spec:
-  type: {{ .Values.service.type }}
+  type: ClusterIP
   ports:
-    - port: {{ .Values.service.port }}
+    - port: 80
       targetPort: {{ .Values.service.targetPort }}
       protocol: TCP
   selector:
