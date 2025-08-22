@@ -56,6 +56,7 @@ jobs:
         with:
           push: false
           tags: |
+            docker.io/${{ secrets.DOCKER_USERNAME }}/graduation-project-devops:${{ github.sha }}
             ghcr.io/${{ secrets.DOCKER_USERNAME }}/graduation-project-devops:${{ github.sha }}
 
       - name: Test Docker Image
@@ -102,5 +103,5 @@ jobs:
         with:
           push: true
           tags: |
-            docker.io/${{ secrets.DOCKER_USERNAME }}/solar-system:${{ github.sha }}
+            docker.io/${{ secrets.DOCKER_USERNAME }}/graduation-project-devops:${{ github.sha }}
             ghcr.io/${{ secrets.DOCKER_USERNAME }}/graduation-project-devops:${{ github.sha }}
