@@ -27,8 +27,9 @@ jobs:
       - name: Delete LoadBalancer Services
         run: |
           aws eks update-kubeconfig --name otel-cluster --region us-east-1 || true
-          kubectl delete services --all --ignore-not-found=true || true
-
+          helm uninstall solar-system --namespace default || true
+          kubectl delete svc -l app=solar-system || true
+          
       - name: Terraform Init
         run: terraform init
         working-directory: ./Terraform

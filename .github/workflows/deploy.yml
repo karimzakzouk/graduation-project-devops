@@ -65,21 +65,28 @@ jobs:
             MONGO_PASSWORD: $(echo -n "${{ secrets.MONGO_PASSWORD }}" | base64)
           EOF
 
-      - name: Generate Deployment YAML with Docker image
+      # - name: Generate Deployment YAML with Docker image
+      #   run: |
+      #     IMAGE_TAG=${{ inputs.image-tag || github.sha }}
+      #     envsubst < ./kubernetes/deployment.template.yml > ./kubernetes/deployment.yml
+      #   env:
+      #     DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      #     IMAGE_TAG: ${{ inputs.image-tag || github.sha }}
+
+      - name: Setup helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.5.4
+
+
+      - name: Deploy with helm
         run: |
           IMAGE_TAG=${{ inputs.image-tag || github.sha }}
-          envsubst < ./kubernetes/deployment.template.yml > ./kubernetes/deployment.yml
-        env:
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          IMAGE_TAG: ${{ inputs.image-tag || github.sha }}
-
-      - name: Deploy to EKS
-        run: |
-          kubectl apply -f deployment.yml
-          kubectl apply -f service.yml
-        working-directory: ./kubernetes
-
-        
+          helm upgrade --install solar-system ./helm \
+           --set image.repository=ghcr.io/${{ secrets.DOCKER_USERNAME }}/graduation-project-devops \
+           --set image.tag=$IMAGE_TAG \
+           --namespace default \
+           --create-namespace
 
       - name: Verify Deployment
         run: |
