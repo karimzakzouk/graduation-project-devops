@@ -65,40 +65,16 @@ jobs:
             MONGO_PASSWORD: $(echo -n "${{ secrets.MONGO_PASSWORD }}" | base64)
           EOF
 
-      # - name: Generate Deployment YAML with Docker image
-      #   run: |
-      #     IMAGE_TAG=${{ inputs.image-tag || github.sha }}
-      #     envsubst < ./kubernetes/deployment.template.yml > ./kubernetes/deployment.yml
-      #   env:
-      #     DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      #     IMAGE_TAG: ${{ inputs.image-tag || github.sha }}
-
-      - name: Setup helm
-        uses: azure/setup-helm@v4
-        with:
-          version: v3.5.4
-
-
-      - name: Deploy with helm
+      - name: Update Helm values with new image tag
         run: |
           IMAGE_TAG=${{ inputs.image-tag || github.sha }}
-          helm upgrade --install solar-system ./helm \
-           --set image.repository=ghcr.io/${{ secrets.DOCKER_USERNAME }}/graduation-project-devops \
-           --set image.tag=$IMAGE_TAG \
-           --namespace default \
-           --create-namespace
-
-      - name: Verify Deployment
+          # Update the image tag in values.yaml for ArgoCD to pick up
+          sed -i "s|tag: \".*\"|tag: \"$IMAGE_TAG\"|g" ./helm/values.yaml
+          
+      - name: Commit updated image tag
         run: |
-          kubectl get pods -l app=solar-system
-          kubectl get services
-          echo "Waiting for deployment to be ready..."
-          kubectl wait --for=condition=available --timeout=300s deployment/solar-system
-          echo "Waiting for container to be running..."
-          kubectl wait --for=condition=Ready --timeout=180s pod -l app=solar-system
-
-      - name: Get Service URL
-        run: |
-          HOSTNAME=$(kubectl get svc solar-system-svc -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-          echo "Service URL: http://$HOSTNAME"
-        working-directory: ./kubernetes
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add helm/values.yaml
+          git commit -m "Update image tag to ${{ inputs.image-tag || github.sha }}" || exit 0
+          git push

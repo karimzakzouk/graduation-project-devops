@@ -51,3 +51,39 @@ jobs:
         if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
         run: terraform apply -auto-approve
         working-directory: ./Terraform
+
+      - name: Update kubeconfig
+        if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
+        run: |
+          aws eks update-kubeconfig --name otel-cluster --region us-east-1
+
+      - name: Wait for ArgoCD LoadBalancer
+        if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
+        run: |
+          echo "Waiting for ArgoCD LoadBalancer to be ready..."
+          kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd || true
+          sleep 30
+
+      - name: Get ArgoCD Access Info
+        if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
+        run: |
+          echo "=========================================="
+          echo "🚀 ARGOCD ACCESS INFORMATION"
+          echo "=========================================="
+          
+          # Get ArgoCD URL
+          ARGOCD_URL=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "Still loading...")
+          echo "📋 ArgoCD URL: http://$ARGOCD_URL"
+          
+          # Get admin password
+          ARGOCD_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || echo "Secret not ready yet")
+          echo "🔑 Username: admin"
+          echo "🔑 Password: $ARGOCD_PASSWORD"
+          
+          echo "=========================================="
+          echo "📝 Instructions:"
+          echo "1. Wait a few minutes for LoadBalancer DNS to propagate"
+          echo "2. Access: http://$ARGOCD_URL"
+          echo "3. Login with username 'admin' and password above"
+          echo "4. Your solar-system app should appear automatically"
+          echo "=========================================="
