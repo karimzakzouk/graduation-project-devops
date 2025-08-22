@@ -25,9 +25,10 @@ on:
         type: boolean
 
 permissions:
-  contents: read
+  contents: write
   packages: write
   id-token: write
+  actions: read
 
 jobs:
   ci:
