@@ -31,6 +31,7 @@ on:
 permissions:
   contents: read
   packages: write
+  id-token: write
 
 jobs:
   ci:
@@ -43,6 +44,10 @@ jobs:
     name: Build Docker Image
     if: ${{ !inputs.skip-docker && (success() || inputs.skip-tests) }}
     needs: [ci]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     uses: ./.github/workflows/docker.yml
     secrets: inherit
     with:
