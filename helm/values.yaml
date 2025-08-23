@@ -3,7 +3,7 @@ replicaCount: 1
 image:
   repository: ghcr.io/karimzakzouk/graduation-project-devops
   pullPolicy: IfNotPresent
-  tag: "aa171197c28d7fd30577e3cc1f51079a3a076e8b"
+  tag: "8b20f409807638d2920f4843635986d7342eb13e"
 
 service:
   type: LoadBalancer
