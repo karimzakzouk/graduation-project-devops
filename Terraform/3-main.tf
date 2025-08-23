@@ -17,29 +17,3 @@ module "eks" {
   subnet_ids            = module.vpc.private_subnet_ids
   node_groups           = var.node_groups
 }
-
-module "argocd" {
-  source = "./modules/argocd"
-  
-  cluster_name   = var.cluster_name
-  namespace      = "argocd"
-  service_type   = "LoadBalancer"
-  insecure       = true
-  timeout        = 600
-  
-  applications = [
-    {
-      name                  = "solar-system"
-      namespace            = "argocd"
-      repository_url       = "https://github.com/KarimZakzouk/Graduation-Project-Devops"
-      path                 = "helm"
-      target_revision      = "HEAD"
-      destination_namespace = "default"
-      auto_sync            = true
-      self_heal            = true
-      prune                = true
-    }
-  ]
-  
-  depends_on = [module.eks]
-}
