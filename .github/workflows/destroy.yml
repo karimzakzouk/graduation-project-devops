@@ -36,6 +36,9 @@ jobs:
         run: |
           helm uninstall argocd -n argocd || true
           kubectl delete namespace argocd || true
+      - name: Delete App Namespace
+        run: |
+          kubectl delete namespace my-app-namespace || true
 
       - name: Terraform Init
         run: terraform init
