@@ -27,19 +27,29 @@ jobs:
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name otel-cluster --region us-east-1
 
-      - name: Delete Monitoring Stack
+      - name: Delete ArgoCD Applications (app + monitoring)
         run: |
+          kubectl delete application my-app -n argocd || true
           kubectl delete application kube-prometheus-stack -n argocd || true
-          kubectl delete namespace monitoring || true
+
+      - name: Delete Monitoring Namespace
+        run: kubectl delete namespace monitoring || true
+
+      - name: Delete App Namespace
+        run: kubectl delete namespace my-app-namespace || true
+
 
       - name: Uninstall ArgoCD
         run: |
           helm uninstall argocd -n argocd || true
           kubectl delete namespace argocd || true
-      - name: Delete App Namespace
-        run: |
-          kubectl delete namespace my-app-namespace || true
 
+      - name: Cleanup PVCs (to release EBS volumes)
+        run: |
+          kubectl delete pvc --all -A || true
+          kubectl delete pv --all || true
+
+          
       - name: Terraform Init
         run: terraform init
         working-directory: ./Terraform
