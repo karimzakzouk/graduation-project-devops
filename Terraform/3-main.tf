@@ -48,33 +48,42 @@ resource "time_sleep" "wait_for_argocd" {
   create_duration = "60s"
 }
 
-# Create ArgoCD Application automatically
-resource "kubernetes_manifest" "solar_system_app" {
-  manifest = {
-    apiVersion = "argoproj.io/v1alpha1"
-    kind       = "Application"
-    metadata = {
-      name      = "solar-system"
-      namespace = "argocd"
-    }
-    spec = {
-      project = "default"
-      source = {
-        repoURL        = "https://github.com/KarimZakzouk/Graduation-Project-Devops"
-        targetRevision = "HEAD"
-        path           = "helm"
-      }
-      destination = {
-        server    = "https://kubernetes.default.svc"
-        namespace = "default"
-      }
-      syncPolicy = {
-        automated = {
-          prune    = true
-          selfHeal = true
-        }
-      }
-    }
+# Create ArgoCD Application automatically using kubectl
+resource "null_resource" "solar_system_app" {
+  provisioner "local-exec" {
+    command = <<EOF
+# Wait for ArgoCD CRDs to be available
+kubectl wait --for condition=established --timeout=300s crd/applications.argoproj.io
+
+# Create the ArgoCD Application
+kubectl apply -f - <<YAML
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: solar-system
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/KarimZakzouk/Graduation-Project-Devops
+    targetRevision: HEAD
+    path: helm
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+YAML
+EOF
+  }
+
+  provisioner "local-exec" {
+    when    = destroy
+    command = "kubectl delete application solar-system -n argocd --ignore-not-found=true"
   }
 
   depends_on = [time_sleep.wait_for_argocd]
