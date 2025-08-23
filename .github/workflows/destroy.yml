@@ -27,11 +27,11 @@ jobs:
       - name: Delete LoadBalancer Services
         run: |
           aws eks update-kubeconfig --name otel-cluster --region us-east-1 || true
-          
-          # Only delete the LoadBalancer services to prevent VPC destruction issues
-          # Let Terraform handle destroying the ArgoCD application it created
+
+          helm uninstall argocd -n argocd || true
+
           kubectl delete svc argocd-server -n argocd || true
-          kubectl delete svc solar-system-svc || true
+          kubectl delete svc solar-system-svc -n default || true
 
       - name: Terraform Init
         run: terraform init
