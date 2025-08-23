@@ -1,3 +1,9 @@
+resource "random_password" "dex_secret" {
+  length  = 64
+  special = true
+}
+
+
 # Install ArgoCD using Helm
 resource "helm_release" "argocd" {
   name       = "argocd"
@@ -5,16 +11,18 @@ resource "helm_release" "argocd" {
   chart      = "argo-cd"
   namespace  = var.namespace
   version    = var.chart_version
-  
+
   create_namespace = true
   wait             = true
   timeout          = var.timeout
-  
+
+  # Server service type
   set {
     name  = "server.service.type"
     value = var.service_type
   }
-  
+
+  # Extra server arguments
   dynamic "set" {
     for_each = var.insecure ? [1] : []
     content {
@@ -23,13 +31,12 @@ resource "helm_release" "argocd" {
     }
   }
 
-  # Additional ArgoCD configurations
   set {
     name  = "server.extraArgs[1]"
     value = "--grpc-web"
   }
 
-  # Configure ArgoCD to work with LoadBalancer
+  # LoadBalancer annotations
   set {
     name  = "server.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-type"
     value = "nlb"
@@ -39,6 +46,12 @@ resource "helm_release" "argocd" {
     name  = "server.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-scheme"
     value = "internet-facing"
   }
+
+  # ✅ Dex secret key (production)
+    set {
+    name  = "dex.config.server.secretKey"
+    value = var.dex_secret_key != null ? var.dex_secret_key : random_password.dex_secret.result
+    }
 }
 
 # Wait for ArgoCD to be ready before creating applications

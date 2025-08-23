@@ -54,3 +54,11 @@ variable "wait_for_ready" {
   type        = string
   default     = "60s"
 }
+
+variable "dex_secret_key" {
+  description = "Dex server secret key for ArgoCD (production)"
+  type        = string
+  sensitive   = true
+  default     = random_password.dex_secret.result
+}
+
