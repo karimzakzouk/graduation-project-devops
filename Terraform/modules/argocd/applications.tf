@@ -1,11 +1,18 @@
-# Create ArgoCD Applications
 resource "null_resource" "argocd_applications" {
   count = length(var.applications)
 
+  # Store dynamic values in triggers
+  triggers = {
+    cluster_name = var.cluster_name
+    namespace    = var.namespace
+    app_name     = var.applications[count.index].name
+  }
+
+  # Creation
   provisioner "local-exec" {
     command = <<EOF
 # Configure kubectl to use EKS cluster
-aws eks update-kubeconfig --name ${var.cluster_name} --region us-east-1
+aws eks update-kubeconfig --name ${self.triggers.cluster_name} --region us-east-1
 
 # Wait for ArgoCD CRDs to be available
 kubectl wait --for condition=established --timeout=300s crd/applications.argoproj.io
@@ -15,8 +22,8 @@ kubectl apply -f - <<YAML
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: ${var.applications[count.index].name}
-  namespace: ${var.namespace}
+  name: ${self.triggers.app_name}
+  namespace: ${self.triggers.namespace}
 spec:
   project: default
   source:
@@ -36,12 +43,13 @@ YAML
 EOF
   }
 
+  # Destroy
   provisioner "local-exec" {
-    when    = destroy
-  command = <<EOF
-# Configure kubectl for destroy (using hardcoded values)
-aws eks update-kubeconfig --name otel-cluster --region us-east-1 || true
-kubectl delete application ${self.triggers.name} -n argocd --ignore-not-found=true
+    when = destroy
+    command = <<EOF
+# Configure kubectl for destroy (using dynamic triggers)
+aws eks update-kubeconfig --name ${self.triggers.cluster_name} --region us-east-1 || true
+kubectl delete application ${self.triggers.app_name} -n ${self.triggers.namespace} --ignore-not-found=true
 EOF
   }
 
