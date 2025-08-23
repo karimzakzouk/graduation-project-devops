@@ -9,3 +9,8 @@ service:
   type: LoadBalancer
   port: 80
   targetPort: 3000
+
+mongo:
+  uri: "YOUR_URI"
+  username: "YOUR_USERNAME"
+  password: "YOUR_PASSWORD"

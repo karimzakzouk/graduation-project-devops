@@ -76,6 +76,7 @@ jobs:
         run: |
           kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
           kubectl create secret generic grafana-admin-secret \
+            --from-literal=admin-user=admin \
             --from-literal=admin-password='${{ secrets.GRAFANA_ADMIN_PASSWORD }}' \
             --namespace monitoring \
             --dry-run=client -o yaml | kubectl apply -f -
@@ -83,4 +84,5 @@ jobs:
       - name: Deploy Monitoring
         if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
         run: |
-          kubectl apply -f ./argocd/monitoring-stack.yaml
+          kubectl apply -f ./argocd/monitoring.yml
+

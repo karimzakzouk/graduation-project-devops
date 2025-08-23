@@ -24,14 +24,18 @@ jobs:
         with:
           terraform_version: 1.5.7
 
-      - name: Delete LoadBalancer Services
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name otel-cluster --region us-east-1
+
+      - name: Delete Monitoring Stack
         run: |
-          aws eks update-kubeconfig --name otel-cluster --region us-east-1 || true
+          kubectl delete application kube-prometheus-stack -n argocd || true
+          kubectl delete namespace monitoring || true
 
+      - name: Uninstall ArgoCD
+        run: |
           helm uninstall argocd -n argocd || true
-
-          kubectl delete svc argocd-server -n argocd || true
-          kubectl delete svc solar-system-svc -n default || true
+          kubectl delete namespace argocd || true
 
       - name: Terraform Init
         run: terraform init

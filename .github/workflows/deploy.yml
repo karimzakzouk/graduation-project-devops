@@ -81,7 +81,12 @@ jobs:
           git add helm/values.yaml
           git commit -m "Update image tag to ${{ inputs.image-tag || github.sha }}" || exit 0
           git push https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-
+      
+      - name: Deploy ArgoCD Applications
+        if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
+        run: |
+          kubectl apply -f ./argocd/application.yml
+          
       - name: Get Application URL
         run: |
           echo "Application URL: http://$(kubectl get svc solar-system-svc -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"

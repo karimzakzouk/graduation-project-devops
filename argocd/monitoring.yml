@@ -10,7 +10,10 @@ spec:
     chart: kube-prometheus-stack
     targetRevision: "45.7.1"
     helm:
+      skipCrds: false
       values: |
+        crds:
+          enabled: true  # Enable CRD installation
         prometheus:
           service:
             type: LoadBalancer
@@ -32,3 +35,5 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
