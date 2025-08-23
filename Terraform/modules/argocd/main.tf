@@ -3,9 +3,9 @@ resource "random_password" "dex_secret" {
   special = true
 }
 
-
-# Install ArgoCD using Helm
 resource "helm_release" "argocd" {
+  depends_on = [random_password.dex_secret]
+
   name       = "argocd"
   repository = "https://argoproj.github.io/argo-helm"
   chart      = "argo-cd"
@@ -31,11 +31,6 @@ resource "helm_release" "argocd" {
     }
   }
 
-  set {
-    name  = "server.extraArgs[1]"
-    value = "--grpc-web"
-  }
-
   # LoadBalancer annotations
   set {
     name  = "server.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-type"
@@ -47,14 +42,13 @@ resource "helm_release" "argocd" {
     value = "internet-facing"
   }
 
-  # ✅ Dex secret key (production)
-    set {
+  # Dex secret key (production)
+  set {
     name  = "dex.config.server.secretKey"
     value = var.dex_secret_key != null ? var.dex_secret_key : random_password.dex_secret.result
-    }
+  }
 }
 
-# Wait for ArgoCD to be ready before creating applications
 resource "time_sleep" "wait_for_argocd" {
   depends_on      = [helm_release.argocd]
   create_duration = var.wait_for_ready
