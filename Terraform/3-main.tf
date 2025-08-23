@@ -26,6 +26,8 @@ resource "helm_release" "argocd" {
   namespace  = "argocd"
   
   create_namespace = true
+  wait             = true
+  timeout          = 600
   
   set {
     name  = "server.service.type"
@@ -38,4 +40,42 @@ resource "helm_release" "argocd" {
   }
 
   depends_on = [module.eks]
+}
+
+# Wait for ArgoCD to be ready before creating applications
+resource "time_sleep" "wait_for_argocd" {
+  depends_on = [helm_release.argocd]
+  create_duration = "60s"
+}
+
+# Create ArgoCD Application automatically
+resource "kubernetes_manifest" "solar_system_app" {
+  manifest = {
+    apiVersion = "argoproj.io/v1alpha1"
+    kind       = "Application"
+    metadata = {
+      name      = "solar-system"
+      namespace = "argocd"
+    }
+    spec = {
+      project = "default"
+      source = {
+        repoURL        = "https://github.com/KarimZakzouk/Graduation-Project-Devops"
+        targetRevision = "HEAD"
+        path           = "helm"
+      }
+      destination = {
+        server    = "https://kubernetes.default.svc"
+        namespace = "default"
+      }
+      syncPolicy = {
+        automated = {
+          prune    = true
+          selfHeal = true
+        }
+      }
+    }
+  }
+
+  depends_on = [time_sleep.wait_for_argocd]
 }
