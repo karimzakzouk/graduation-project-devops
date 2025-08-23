@@ -41,7 +41,7 @@ EOF
   command = <<EOF
 # Configure kubectl for destroy (using hardcoded values)
 aws eks update-kubeconfig --name otel-cluster --region us-east-1 || true
-kubectl delete application ${var.applications[count.index].name} -n argocd --ignore-not-found=true
+kubectl delete application ${self.triggers.name} -n argocd --ignore-not-found=true
 EOF
   }
 
