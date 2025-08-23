@@ -18,80 +18,28 @@ module "eks" {
   node_groups           = var.node_groups
 }
 
-# Install ArgoCD
-resource "helm_release" "argocd" {
-  name       = "argocd"
-  repository = "https://argoproj.github.io/argo-helm"
-  chart      = "argo-cd"
-  namespace  = "argocd"
+module "argocd" {
+  source = "./modules/argocd"
   
-  create_namespace = true
-  wait             = true
-  timeout          = 600
+  cluster_name   = var.cluster_name
+  namespace      = "argocd"
+  service_type   = "LoadBalancer"
+  insecure       = true
+  timeout        = 600
   
-  set {
-    name  = "server.service.type"
-    value = "LoadBalancer"
-  }
+  applications = [
+    {
+      name                  = "solar-system"
+      namespace            = "argocd"
+      repository_url       = "https://github.com/KarimZakzouk/Graduation-Project-Devops"
+      path                 = "helm"
+      target_revision      = "HEAD"
+      destination_namespace = "default"
+      auto_sync            = true
+      self_heal            = true
+      prune                = true
+    }
+  ]
   
-  set {
-    name  = "server.extraArgs[0]"
-    value = "--insecure"
-  }
-
   depends_on = [module.eks]
-}
-
-# Wait for ArgoCD to be ready before creating applications
-resource "time_sleep" "wait_for_argocd" {
-  depends_on = [helm_release.argocd]
-  create_duration = "60s"
-}
-
-# Create ArgoCD Application automatically using kubectl
-resource "null_resource" "solar_system_app" {
-  provisioner "local-exec" {
-    command = <<EOF
-# Configure kubectl to use EKS cluster
-aws eks update-kubeconfig --name ${module.eks.cluster_name} --region us-east-1
-
-# Wait for ArgoCD CRDs to be available
-kubectl wait --for condition=established --timeout=300s crd/applications.argoproj.io
-
-# Create the ArgoCD Application
-kubectl apply -f - <<YAML
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: solar-system
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/KarimZakzouk/Graduation-Project-Devops
-    targetRevision: HEAD
-    path: helm
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: default
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-    - CreateNamespace=true
-YAML
-EOF
-  }
-
-  provisioner "local-exec" {
-    when    = destroy
-    command = <<EOF
-# Configure kubectl for destroy (using hardcoded cluster name)
-aws eks update-kubeconfig --name otel-cluster --region us-east-1 || true
-kubectl delete application solar-system -n argocd --ignore-not-found=true
-EOF
-  }
-
-  depends_on = [time_sleep.wait_for_argocd]
 }
