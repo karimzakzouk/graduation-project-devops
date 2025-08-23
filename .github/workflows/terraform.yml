@@ -78,9 +78,8 @@ jobs:
           helm upgrade --install argocd argo/argo-cd \
             --namespace argocd \
             --create-namespace \
-            --version 6.7.2 \
+            --set server.service.type=LoadBalancer \
             --wait
-            
 
       # ---------------------------
       # Get ArgoCD Server URL
@@ -97,3 +96,9 @@ jobs:
           fi
           
           echo "ArgoCD URL: http://$ARGOCD_URL"
+
+          PASS=$(kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 --decode)
+          echo "username=admin"
+          echo "password=$PASS"
+
+          
