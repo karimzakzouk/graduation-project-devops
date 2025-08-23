@@ -87,8 +87,8 @@ EOF
   provisioner "local-exec" {
     when    = destroy
     command = <<EOF
-# Configure kubectl for destroy
-aws eks update-kubeconfig --name ${module.eks.cluster_name} --region us-east-1 || true
+# Configure kubectl for destroy (using hardcoded cluster name)
+aws eks update-kubeconfig --name otel-cluster --region us-east-1 || true
 kubectl delete application solar-system -n argocd --ignore-not-found=true
 EOF
   }
