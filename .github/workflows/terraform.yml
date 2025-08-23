@@ -1,5 +1,4 @@
 name: Terraform Infrastructure
-
 on:
   workflow_dispatch:
   workflow_call:
@@ -13,7 +12,6 @@ on:
       terraform-result:
         description: "Terraform execution result"
         value: ${{ jobs.terraform.outputs.result }}
-
 jobs:
   terraform:
     name: Terraform Deployment
@@ -25,27 +23,22 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
-
       - name: Login to AWS
         uses: aws-actions/configure-aws-credentials@v4.3.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3.1.2
         with:
           terraform_version: 1.5.7
-
       - name: Terraform Init
         run: terraform init
         working-directory: ./Terraform
-
       - name: Terraform Plan
         run: terraform plan
         working-directory: ./Terraform
-
       - name: Terraform Apply
         id: terraform-apply
         if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
@@ -59,19 +52,16 @@ jobs:
         if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
         run: |
           aws eks update-kubeconfig --name otel-cluster --region us-east-1
-
       - name: Install Helm
         if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
         uses: azure/setup-helm@v4.2.0
         with:
           version: v3.14.0
-
       - name: Add ArgoCD Helm Repo
         if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
         run: |
           helm repo add argo https://argoproj.github.io/argo-helm
           helm repo update
-
       - name: Install/Upgrade ArgoCD
         if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
         run: |
@@ -81,24 +71,16 @@ jobs:
             --set server.service.type=LoadBalancer \
             --wait
 
-      # ---------------------------
-      # Get ArgoCD Server URL
-      # ---------------------------
-      - name: Get ArgoCD URL
+      - name: Create Grafana Secret
         if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
         run: |
-          echo "Waiting for ArgoCD LoadBalancer..."
-          kubectl wait --for=condition=available deployment/argocd-server -n argocd --timeout=300s || true
-          
-          ARGOCD_URL=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-          if [ -z "$ARGOCD_URL" ]; then
-            ARGOCD_URL=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-          fi
-          
-          echo "ArgoCD URL: http://$ARGOCD_URL"
+          kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create secret generic grafana-admin-secret \
+            --from-literal=admin-password='${{ secrets.GRAFANA_ADMIN_PASSWORD }}' \
+            --namespace monitoring \
+            --dry-run=client -o yaml | kubectl apply -f -
 
-          PASS=$(kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 --decode)
-          echo "username=admin"
-          echo "password=$PASS"
-
-          
+      - name: Deploy Monitoring
+        if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
+        run: |
+          kubectl apply -f ./argocd/monitoring-stack.yaml
