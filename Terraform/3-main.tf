@@ -52,6 +52,9 @@ resource "time_sleep" "wait_for_argocd" {
 resource "null_resource" "solar_system_app" {
   provisioner "local-exec" {
     command = <<EOF
+# Configure kubectl to use EKS cluster
+aws eks update-kubeconfig --name ${module.eks.cluster_name} --region us-east-1
+
 # Wait for ArgoCD CRDs to be available
 kubectl wait --for condition=established --timeout=300s crd/applications.argoproj.io
 
@@ -83,7 +86,11 @@ EOF
 
   provisioner "local-exec" {
     when    = destroy
-    command = "kubectl delete application solar-system -n argocd --ignore-not-found=true"
+    command = <<EOF
+# Configure kubectl for destroy
+aws eks update-kubeconfig --name ${module.eks.cluster_name} --region us-east-1 || true
+kubectl delete application solar-system -n argocd --ignore-not-found=true
+EOF
   }
 
   depends_on = [time_sleep.wait_for_argocd]
