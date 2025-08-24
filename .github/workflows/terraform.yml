@@ -53,15 +53,11 @@ jobs:
         run: terraform plan
         working-directory: ./Terraform
         
-
-  terraform-apply:
-    name: Terraform Apply
-    needs: terraform
-    runs-on: ubuntu-latest
-    environment: production  # <-- This triggers manual approval
-    steps:
       - name: Terraform Apply
+        id: terraform-action
+        if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
         run: terraform apply -auto-approve
+        working-directory: ./Terraform
 
       - name: Get Terraform outputs
         id: terraform-outputs
