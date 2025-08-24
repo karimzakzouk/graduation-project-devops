@@ -11,7 +11,4 @@ service:
   port: 80
   targetPort: 3000
 
-mongo:
-  existingSecret: mongo-secrets
-
 namespace: "" 
