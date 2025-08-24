@@ -104,7 +104,7 @@ jobs:
       # ---------------------------
       - name: Update kubeconfig
         if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
-        run: aws eks update-kubeconfig --name ${{ vars.CLUSTER_NAME }} --region us-east-1
+        run: aws eks update-kubeconfig --name $CLUSTER_NAME --region us-east-1
 
       - name: Install Helm
         if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
@@ -122,7 +122,7 @@ jobs:
         if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
         run: |
           helm upgrade --install argocd argo/argo-cd \
-            --namespace ${{ vars.ARGOCD_NAMESPACE }} \
+            --namespace $ARGOCD_NAMESPACE \
             --create-namespace \
             --set server.service.type=LoadBalancer \
             --wait
@@ -130,16 +130,16 @@ jobs:
       - name: Create Grafana Secret
         if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
         run: |
-          kubectl create namespace ${{ vars.MONITORING_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create namespace $MONITORING_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
           kubectl create secret generic grafana-admin-secret \
             --from-literal=admin-user=admin \
             --from-literal=admin-password='${{ secrets.GRAFANA_ADMIN_PASSWORD }}' \
-            --namespace ${{ vars.MONITORING_NAMESPACE }} \
+            --namespace $MONITORING_NAMESPACE \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy Monitoring
         if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
         run: |
-          export MONITORING_NAMESPACE=${{ vars.MONITORING_NAMESPACE }}
-          export ARGOCD_NAMESPACE=${{ vars.ARGOCD_NAMESPACE }}
+          export MONITORING_NAMESPACE=$MONITORING_NAMESPACE
+          export ARGOCD_NAMESPACE=$ARGOCD_NAMESPACE
           envsubst < ./argocd/monitoring.yml | kubectl apply -f -

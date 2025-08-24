@@ -126,5 +126,5 @@ jobs:
           gh variable delete MONITORING_NAMESPACE --repo $GITHUB_REPOSITORY || true
           gh variable delete ARGOCD_NAMESPACE --repo $GITHUB_REPOSITORY || true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
         continue-on-error: true
