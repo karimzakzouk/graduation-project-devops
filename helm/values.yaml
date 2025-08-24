@@ -4,7 +4,7 @@ image:
   repository: ghcr.io/karimzakzouk/graduation-project-devops
   pullPolicy: IfNotPresent
 
-  tag: "bde66b52b3af9872dc33aa08761d77a22ff1f8fb"
+  tag: "a6439418142ebf551258756dd0e72fccbf6b4f50"
 
 service:
   type: LoadBalancer
