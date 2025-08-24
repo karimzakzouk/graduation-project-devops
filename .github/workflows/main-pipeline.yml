@@ -84,7 +84,15 @@ jobs:
               - '.github/workflows/deploy.yml'
               - 'argocd/monitoring.yml'
               - '.github/workflows/monitoring.yml'
+      
+      - name: Debug - List changed files
+        run: |
+          echo "Changed files in this push:"
+          git diff --name-only HEAD~1 HEAD || echo "No previous commit to compare"
+          echo "App changed: ${{ steps.changes.outputs.app }}"
+          echo "Infra changed: ${{ steps.changes.outputs.infra }}"
 
+  # CI Tests - runs when app changes or manual dispatch
   ci:
     name: Run CI Tests
     needs: [detect-changes]
@@ -185,14 +193,14 @@ jobs:
       id-token: write
       actions: read
 
-  # Monitoring - runs after deployment when infra changes or manual dispatch
+  # Monitoring - runs in parallel with deployment after ArgoCD
   monitoring:
     name: Deploy Monitoring Stack
-    needs: [deployment, detect-changes]
+    needs: [argocd, detect-changes]
     if: |
       !cancelled() &&
       !inputs.skip-monitoring && 
-      (needs.deployment.result == 'success' || (needs.deployment.result == 'skipped' && inputs.skip-deployment)) && (
+      (needs.argocd.result == 'success' || (needs.argocd.result == 'skipped' && inputs.skip-argocd)) && (
         inputs.force-all || 
         (github.event_name == 'workflow_dispatch') ||
         needs.detect-changes.outputs.infra-changed == 'true'
@@ -205,15 +213,14 @@ jobs:
       id-token: write
       actions: read
 
-  # Show endpoints - runs at the end when any deployment happened
+  # Show endpoints - runs after both deployment and monitoring complete
   show-endpoints:
     name: Show Service Endpoints
-    needs: [detect-changes, argocd, deployment, monitoring]
+    needs: [detect-changes, deployment, monitoring]
     if: |
       !cancelled() && (
         (github.event_name == 'workflow_dispatch') ||
         (needs.detect-changes.outputs.infra-changed == 'true' && (
-          needs.argocd.result == 'success' || 
           needs.deployment.result == 'success' || 
           needs.monitoring.result == 'success'
         ))
