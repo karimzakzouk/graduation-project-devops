@@ -2,6 +2,25 @@ name: Terraform Infrastructure
 on:
   workflow_dispatch:
   workflow_call:
+    outputs:
+      result:
+        description: "Result of the Terraform apply action"
+        value: ${{ jobs.terraform.outputs.result }}
+      cluster_name:
+        description: "Name of the cluster from Terraform outputs"
+        value: ${{ jobs.terraform.outputs.cluster_name }}
+      app_namespace:
+        description: "Application namespace from Terraform outputs"
+        value: ${{ jobs.terraform.outputs.app_namespace }}
+      monitoring_namespace:
+        description: "Monitoring namespace from Terraform outputs"
+        value: ${{ jobs.terraform.outputs.monitoring_namespace }}
+      argocd_namespace:
+        description: "ArgoCD namespace from Terraform outputs"
+        value: ${{ jobs.terraform.outputs.argocd_namespace }}
+      app_name:
+        description: "Application name from Terraform outputs"
+        value: ${{ jobs.terraform.outputs.app_name }}
 
 jobs:
   terraform:

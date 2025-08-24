@@ -35,10 +35,6 @@ jobs:
     environment: production
 
     steps:
-
-      - name: Wait for GitHub variables to propagate
-        run: sleep 30
-
       - name: Checkout Repository
         uses: actions/checkout@v5
 
