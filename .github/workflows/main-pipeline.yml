@@ -85,7 +85,6 @@ jobs:
               - 'argocd/monitoring.yml'
               - '.github/workflows/monitoring.yml'
 
-  # CI Tests - runs when app changes or manual dispatch
   ci:
     name: Run CI Tests
     needs: [detect-changes]
@@ -129,8 +128,11 @@ jobs:
     needs: [docker, detect-changes]
     if: |
       !cancelled() &&
-      !inputs.skip-terraform && 
-      (needs.docker.result == 'success' || (needs.docker.result == 'skipped' && inputs.skip-docker)) && (
+      !inputs.skip-terraform && (
+        needs.docker.result == 'success' || 
+        needs.docker.result == 'skipped' || 
+        (needs.detect-changes.outputs.infra-changed == 'true' && needs.detect-changes.outputs.app-changed == 'false')
+      ) && (
         inputs.force-all || 
         (github.event_name == 'workflow_dispatch') ||
         needs.detect-changes.outputs.infra-changed == 'true'
