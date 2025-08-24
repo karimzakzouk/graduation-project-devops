@@ -69,19 +69,3 @@ jobs:
       - name: Create Application Namespace
         run: |
           kubectl create namespace ${{ inputs.app_namespace }} --dry-run=client -o yaml | kubectl apply -f -
-
-      - name: Deploy Helm Chart
-        run: |
-          helm upgrade --install ${{ inputs.app_name }} ./helm \
-            --namespace ${{ inputs.app_namespace }} \
-            --set mongo.uri="${{ secrets.MONGO_URI }}" \
-            --set mongo.username="${{ secrets.MONGO_USERNAME }}" \
-            --set mongo.password="${{ secrets.MONGO_PASSWORD }}" \
-            --set image.tag="${{ inputs.image_tag || github.sha }}"
-            
-      - name: Deploy ArgoCD Applications
-        run: |
-          export APP_NAME=${{ inputs.app_name }}
-          export APP_NAMESPACE=${{ inputs.app_namespace }}
-          export ARGOCD_NAMESPACE=${{ inputs.argocd_namespace }}
-          envsubst < ./argocd/application.yml | kubectl apply -f -
