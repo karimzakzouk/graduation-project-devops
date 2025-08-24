@@ -82,6 +82,11 @@ jobs:
           git commit -m "Update image tag to ${{ inputs.image-tag || github.sha }}" || exit 0
           git push https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
       
+      - name: Create Application Namespace
+        if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
+        run: |
+          kubectl create namespace my-app-namespace --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Deploy ArgoCD Applications
         if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
         run: |
