@@ -166,9 +166,6 @@ jobs:
         needs.detect-changes.outputs.infra-changed == 'true'
       )
     uses: ./.github/workflows/argocd.yml
-    with:
-      cluster-name: ${{ needs.terraform.outputs.cluster_name }}
-      app-namespace: ${{ needs.terraform.outputs.namespace }}
     secrets: inherit
     permissions:
       contents: write
