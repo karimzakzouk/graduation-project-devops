@@ -3,12 +3,31 @@ on:
   workflow_dispatch:
   workflow_call:
     inputs:
-      image-tag:
+      cluster_name:
+        description: 'EKS Cluster Name'
+        required: true
+        type: string
+      app_namespace:
+        description: 'Kubernetes Namespace for the Application'
+        required: true
+        type: string
+      monitoring_namespace:
+        description: 'Kubernetes Namespace for Monitoring'
+        required: true
+        type: string
+      argocd_namespace:
+        description: 'Kubernetes Namespace for ArgoCD'
+        required: true
+        type: string
+      app_name:
+        description: 'Name of the Application'
+        required: true
+        type: string
+      image_tag:
         description: 'Docker image tag to deploy'
         required: false
         default: ''
         type: string
-
 jobs:
   argocd:
     name: ArgoCD & Monitoring Deployment
@@ -19,7 +38,7 @@ jobs:
 
       - name: Wait for GitHub variables to propagate
         run: sleep 30
-        
+
       - name: Checkout Repository
         uses: actions/checkout@v5
 
@@ -31,7 +50,7 @@ jobs:
           aws-region: us-east-1
 
       - name: Update kubeconfig
-        run: aws eks update-kubeconfig --name ${{ vars.CLUSTER_NAME }} --region us-east-1
+        run: aws eks update-kubeconfig --name ${{ inputs.cluster_name }} --region us-east-1
 
       - name: Install Helm
         uses: azure/setup-helm@v4.2.0
@@ -46,27 +65,27 @@ jobs:
       - name: Install/Upgrade ArgoCD
         run: |
           helm upgrade --install argocd argo/argo-cd \
-            --namespace ${{ vars.ARGOCD_NAMESPACE }} \
+            --namespace ${{ inputs.argocd_namespace }} \
             --create-namespace \
             --set server.service.type=LoadBalancer \
             --wait
 
       - name: Create Application Namespace
         run: |
-          kubectl create namespace ${{ vars.APP_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
-          
+          kubectl create namespace ${{ inputs.app_namespace }} --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Deploy Helm Chart
         run: |
-          helm upgrade --install ${{ vars.APP_NAME }} ./helm \
-            --namespace ${{ vars.APP_NAMESPACE }} \
+          helm upgrade --install ${{ inputs.app_name }} ./helm \
+            --namespace ${{ inputs.app_namespace }} \
             --set mongo.uri="${{ secrets.MONGO_URI }}" \
             --set mongo.username="${{ secrets.MONGO_USERNAME }}" \
             --set mongo.password="${{ secrets.MONGO_PASSWORD }}" \
-            --set image.tag="${{ inputs.image-tag || github.sha }}"
+            --set image.tag="${{ inputs.image_tag || github.sha }}"
             
       - name: Deploy ArgoCD Applications
         run: |
-          export APP_NAME=${{ vars.APP_NAME }}
-          export APP_NAMESPACE=${{ vars.APP_NAMESPACE }}
-          export ARGOCD_NAMESPACE=${{ vars.ARGOCD_NAMESPACE }}
+          export APP_NAME=${{ inputs.app_name }}
+          export APP_NAMESPACE=${{ inputs.app_namespace }}
+          export ARGOCD_NAMESPACE=${{ inputs.argocd_namespace }}
           envsubst < ./argocd/application.yml | kubectl apply -f -

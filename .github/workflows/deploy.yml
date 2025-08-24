@@ -2,6 +2,32 @@ name: Kubernetes Deployment
 on:
   workflow_dispatch:
   workflow_call:
+    inputs:
+      cluster_name:
+        description: 'EKS Cluster Name'
+        required: true
+        type: string
+      app_namespace:
+        description: 'Kubernetes Namespace for the Application'
+        required: true
+        type: string
+      monitoring_namespace:
+        description: 'Kubernetes Namespace for Monitoring'
+        required: true
+        type: string
+      argocd_namespace:
+        description: 'Kubernetes Namespace for ArgoCD'
+        required: true
+        type: string
+      app_name:
+        description: 'Name of the Application'
+        required: true
+        type: string
+      image_tag:
+        description: 'Docker image tag to deploy'
+        required: false
+        default: ''
+        type: string
 jobs:
   deploy:
     name: Deploy to Kubernetes
@@ -21,25 +47,25 @@ jobs:
           
       - name: Update kubeconfig
         run: |
-          aws eks update-kubeconfig --name ${{ vars.CLUSTER_NAME }} --region us-east-1
-          
+          aws eks update-kubeconfig --name ${{ inputs.cluster_name }} --region us-east-1
+
       - name: Create Application Namespace
         run: |
-          kubectl create namespace ${{ vars.APP_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
-          
+          kubectl create namespace ${{ inputs.app_namespace }} --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Deploy Helm Chart
         run: |
-          helm upgrade --install ${{ vars.APP_NAME }} ./helm \
-            --namespace ${{ vars.APP_NAMESPACE }} \
+          helm upgrade --install ${{ inputs.app_name }} ./helm \
+            --namespace ${{ inputs.app_namespace }} \
             --set mongo.uri="${{ secrets.MONGO_URI }}" \
             --set mongo.username="${{ secrets.MONGO_USERNAME }}" \
             --set mongo.password="${{ secrets.MONGO_PASSWORD }}" \
-            --set image.tag="${{ inputs.image-tag || github.sha }}"
-            
+            --set image.tag="${{ inputs.image_tag || github.sha }}"
+
       - name: Deploy ArgoCD Applications
         run: |
-          export APP_NAME=${{ vars.APP_NAME }}
-          export APP_NAMESPACE=${{ vars.APP_NAMESPACE }}
-          export ARGOCD_NAMESPACE=${{ vars.ARGOCD_NAMESPACE }}
+          export APP_NAME=${{ inputs.app_name }}
+          export APP_NAMESPACE=${{ inputs.app_namespace }}
+          export ARGOCD_NAMESPACE=${{ inputs.argocd_namespace }}
           envsubst < ./argocd/application.yml | kubectl apply -f -
             

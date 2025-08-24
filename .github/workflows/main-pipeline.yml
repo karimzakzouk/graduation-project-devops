@@ -130,7 +130,6 @@ jobs:
     uses: ./.github/workflows/docker.yml
     secrets: inherit
 
-  # Terraform - runs after docker (for linear flow) when infra changes or manual dispatch
   terraform:
     name: Deploy Infrastructure
     needs: [docker, detect-changes]
@@ -167,33 +166,20 @@ jobs:
       )
     uses: ./.github/workflows/argocd.yml
     secrets: inherit
+    with:
+      cluster_name: ${{ needs.terraform.outputs.cluster_name }}
+      app_namespace: ${{ needs.terraform.outputs.app_namespace }}
+      monitoring_namespace: ${{ needs.terraform.outputs.monitoring_namespace }}
+      argocd_namespace: ${{ needs.terraform.outputs.argocd_namespace }}
+      app_name: ${{ needs.terraform.outputs.app_name }}
+      image_tag: ${{ github.sha }}
     permissions:
       contents: write
       packages: write
       id-token: write
       actions: read
 
-  # Application Deployment - runs after ArgoCD when infra changes or manual dispatch
-  deployment:
-    name: Deploy Application
-    needs: [argocd, detect-changes]
-    if: |
-      !cancelled() &&
-      !inputs.skip-deployment && 
-      (needs.argocd.result == 'success' || (needs.argocd.result == 'skipped' && inputs.skip-argocd)) && (
-        inputs.force-all || 
-        (github.event_name == 'workflow_dispatch') ||
-        needs.detect-changes.outputs.infra-changed == 'true'
-      )
-    uses: ./.github/workflows/deploy.yml
-    secrets: inherit
-    permissions:
-      contents: write
-      packages: write
-      id-token: write
-      actions: read
-
-  # Monitoring - runs in parallel with deployment after ArgoCD
+  # Monitoring - runs first after ArgoCD
   monitoring:
     name: Deploy Monitoring Stack
     needs: [argocd, detect-changes]
@@ -207,13 +193,47 @@ jobs:
       )
     uses: ./.github/workflows/monitoring.yml
     secrets: inherit
+    with:
+      cluster_name: ${{ needs.terraform.outputs.cluster_name }}
+      app_namespace: ${{ needs.terraform.outputs.app_namespace }}
+      monitoring_namespace: ${{ needs.terraform.outputs.monitoring_namespace }}
+      argocd_namespace: ${{ needs.terraform.outputs.argocd_namespace }}
+      app_name: ${{ needs.terraform.outputs.app_name }}
+      image_tag: ${{ github.sha }}
     permissions:
       contents: write
       packages: write
       id-token: write
       actions: read
 
-  # Show endpoints - runs after both deployment and monitoring complete
+  # Application Deployment - runs after monitoring completes
+  deployment:
+    name: Deploy Application
+    needs: [monitoring, detect-changes]
+    if: |
+      !cancelled() &&
+      !inputs.skip-deployment && 
+      (needs.monitoring.result == 'success' || (needs.monitoring.result == 'skipped' && inputs.skip-monitoring)) && (
+        inputs.force-all || 
+        (github.event_name == 'workflow_dispatch') ||
+        needs.detect-changes.outputs.infra-changed == 'true'
+      )
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
+    with:
+      cluster_name: ${{ needs.terraform.outputs.cluster_name }}
+      app_namespace: ${{ needs.terraform.outputs.app_namespace }}
+      monitoring_namespace: ${{ needs.terraform.outputs.monitoring_namespace }}
+      argocd_namespace: ${{ needs.terraform.outputs.argocd_namespace }}
+      app_name: ${{ needs.terraform.outputs.app_name }}
+      image_tag: ${{ github.sha }}
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      actions: read
+
+  # Show endpoints - runs after deployment completes
   show-endpoints:
     name: Show Service Endpoints
     needs: [detect-changes, deployment, monitoring]
@@ -227,6 +247,13 @@ jobs:
       )
     uses: ./.github/workflows/endpoints.yml
     secrets: inherit
+    with:
+      cluster_name: ${{ needs.terraform.outputs.cluster_name }}
+      app_namespace: ${{ needs.terraform.outputs.app_namespace }}
+      monitoring_namespace: ${{ needs.terraform.outputs.monitoring_namespace }}
+      argocd_namespace: ${{ needs.terraform.outputs.argocd_namespace }}
+      app_name: ${{ needs.terraform.outputs.app_name }}
+      image_tag: ${{ github.sha }}
     permissions:
       contents: read
       id-token: write
