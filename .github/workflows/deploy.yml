@@ -56,10 +56,11 @@ jobs:
       - name: Apply Secrets
         run: |
           kubectl create secret generic mongo-secrets \
-            --from-literal=uri="${{ secrets.MONGO_URI }}" \
-            --from-literal=username="${{ secrets.MONGO_USERNAME }}" \
-            --from-literal=password="${{ secrets.MONGO_PASSWORD }}" \
+            --from-literal=MONGO_URI="${{ secrets.MONGO_URI }}" \
+            --from-literal=MONGO_USERNAME="${{ secrets.MONGO_USERNAME }}" \
+            --from-literal=MONGO_PASSWORD="${{ secrets.MONGO_PASSWORD }}" \
             -n ${{ inputs.app_namespace }} --dry-run=client -o yaml | kubectl apply -f -
+
 
 
       - name: Deploy ArgoCD Applications
