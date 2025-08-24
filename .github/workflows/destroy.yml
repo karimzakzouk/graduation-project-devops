@@ -27,29 +27,50 @@ jobs:
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name otel-cluster --region us-east-1
 
-      - name: Delete ArgoCD Applications (app + monitoring)
+      # ---------------------------
+      # Delete ArgoCD Applications
+      # ---------------------------
+      - name: Delete ArgoCD Applications
         run: |
-          kubectl delete application my-app -n argocd || true
-          kubectl delete application kube-prometheus-stack -n argocd || true
+          kubectl delete application my-app -n argocd --ignore-not-found
+          kubectl delete application kube-prometheus-stack -n argocd --ignore-not-found
 
-      - name: Delete Monitoring Namespace
-        run: kubectl delete namespace monitoring || true
-
-      - name: Delete App Namespace
-        run: kubectl delete namespace my-app-namespace || true
-
-
-      - name: Uninstall ArgoCD
+      # ---------------------------
+      # Uninstall Helm Releases
+      # ---------------------------
+      - name: Uninstall Helm Releases
         run: |
+          helm uninstall my-app -n my-app-namespace || true
+          helm uninstall kube-prometheus-stack -n monitoring || true
           helm uninstall argocd -n argocd || true
-          kubectl delete namespace argocd || true
 
-      - name: Cleanup PVCs (to release EBS volumes)
+      # ---------------------------
+      # Delete Namespaces
+      # ---------------------------
+      - name: Delete Namespaces
+        run: |
+          kubectl delete namespace my-app-namespace --ignore-not-found
+          kubectl delete namespace monitoring --ignore-not-found
+          kubectl delete namespace argocd --ignore-not-found
+
+      # ---------------------------
+      # Delete CRDs (Prometheus & Grafana)
+      # ---------------------------
+      - name: Delete CRDs
+        run: |
+          kubectl get crd -o name | grep -E 'prometheus|grafana|alertmanager|servicemonitor|prometheusrule' | xargs -r kubectl delete || true
+
+      # ---------------------------
+      # Cleanup PVCs & PVs
+      # ---------------------------
+      - name: Cleanup Persistent Storage
         run: |
           kubectl delete pvc --all -A || true
           kubectl delete pv --all || true
 
-          
+      # ---------------------------
+      # Terraform Destroy
+      # ---------------------------
       - name: Terraform Init
         run: terraform init
         working-directory: ./Terraform
