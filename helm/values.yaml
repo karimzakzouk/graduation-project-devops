@@ -13,3 +13,5 @@ service:
 
 mongo:
   existingSecret: mongo-secrets
+
+namespace: "" 

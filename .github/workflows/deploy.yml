@@ -1,13 +1,6 @@
 name: Kubernetes Deployment
-
 on:
   workflow_dispatch:
-    inputs:
-      image-tag:
-        description: 'Docker image tag to deploy'
-        required: false
-        default: 'latest'
-        type: string
   workflow_call:
     inputs:
       image-tag:
@@ -26,62 +19,53 @@ jobs:
     name: Deploy to Kubernetes
     runs-on: ubuntu-latest
     environment: production
+    
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
-
+        
       - name: Login to AWS
         uses: aws-actions/configure-aws-credentials@v4.3.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-
+          
       - name: Update kubeconfig
         run: |
-          aws eks update-kubeconfig --name otel-cluster --region us-east-1 
-
-      - name: Configure kubectl
-        uses: statsig-io/kubectl-via-eksctl@main
-        env:
-          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          region: us-east-1
-          cluster: otel-cluster
-
-      # ✅ Deploy Helm Chart with secrets & image tag
-      - name: Deploy Helm Chart via ArgoCD
+          aws eks update-kubeconfig --name ${{ vars.CLUSTER_NAME }} --region us-east-1
+          
+      - name: Create Application Namespace
         run: |
-          IMAGE_TAG=${{ inputs.image-tag || github.sha }}
-          helm upgrade --install my-app ./helm \
-            --namespace my-app-namespace \
-            --create-namespace \
+          kubectl create namespace ${{ vars.APP_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+          
+      - name: Deploy Helm Chart
+        run: |
+          helm upgrade --install ${{ vars.APP_NAME }} ./helm \
+            --namespace ${{ vars.APP_NAMESPACE }} \
+            --set namespace=${{ vars.APP_NAMESPACE }} \
             --set mongo.uri="${{ secrets.MONGO_URI }}" \
             --set mongo.username="${{ secrets.MONGO_USERNAME }}" \
             --set mongo.password="${{ secrets.MONGO_PASSWORD }}" \
-            --set image.tag="$IMAGE_TAG"
-      - name: Create Application Namespace
-        run: |
-          kubectl create namespace my-app-namespace --dry-run=client -o yaml | kubectl apply -f -
-
-      # ✅ Deploy ArgoCD Application (optional if you want ArgoCD to track)
+            --set image.tag="${{ inputs.image-tag || github.sha }}"
+            
       - name: Deploy ArgoCD Applications
         run: |
-          kubectl apply -f ./argocd/application.yml
+          export APP_NAME=${{ vars.APP_NAME }}
+          export APP_NAMESPACE=${{ vars.APP_NAMESPACE }}
+          export ARGOCD_NAMESPACE=${{ vars.ARGOCD_NAMESPACE }}
+          envsubst < ./argocd/application.yml | kubectl apply -f -
           
       - name: Print Service Endpoints
         run: |
-
-          GRAFANA_PASSWORD=${{secrets.GRAFANA_PASSWORD}}
           echo "================= SERVICE ENDPOINTS ================="
-          echo "ArgoCD:     http://$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
-          echo "Prometheus: http://$(kubectl get svc kube-prometheus-stack-prometheus -n monitoring -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'):9090"
-          echo "Grafana:    http://$(kubectl get svc kube-prometheus-stack-grafana -n monitoring -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
-          echo "App:        http://$(kubectl get svc my-app-svc -n my-app-namespace -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
-
+          echo "ArgoCD: http://$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')"
+          echo "Prometheus: http://$(kubectl get svc kube-prometheus-stack-prometheus -n monitoring -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found'):9090"
+          echo "Grafana: http://$(kubectl get svc kube-prometheus-stack-grafana -n monitoring -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')"
+          echo "App: http://$(kubectl get svc my-app-svc -n ${{ vars.APP_NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')"
           echo "================= DEFAULT CREDENTIALS ================="
           echo "ArgoCD -> Username: admin"
-          echo "ArgoCD -> Password: $(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)"
+          echo "ArgoCD -> Password: $(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || echo 'Not found')"
           echo "Grafana -> Username: admin"
-          echo "Grafana -> Password: $GRAFANA_PASSWORD"
-          echo "Prometheus -> No login needed (anonymous access by default)"
+          echo "Grafana -> Password: ${{ secrets.GRAFANA_PASSWORD }}"
+          echo "Prometheus -> No login needed (anonymous access by default)"s

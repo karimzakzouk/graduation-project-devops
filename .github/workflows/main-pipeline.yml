@@ -1,6 +1,6 @@
 name: Solar System - Main Pipeline
 on:
-  push:                     # ← ADDED: Auto-trigger on push
+  push:                     # Auto-trigger on push
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -24,7 +24,7 @@ on:
         required: false
         default: false
         type: boolean
-      force-all:              # ← ADDED: Force all workflows
+      force-all:              # Force all workflows
         description: 'Force run all workflows (ignore path detection)'
         required: false
         default: false
@@ -37,7 +37,7 @@ permissions:
   actions: read
 
 jobs:
-  # ← NEW: Detect what changed
+  # Detect what changed
   detect-changes:
     name: Detect Changes
     runs-on: ubuntu-latest

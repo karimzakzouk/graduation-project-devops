@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: kube-prometheus-stack
-  namespace: argocd
+  namespace: ${ARGOCD_NAMESPACE}
 spec:
   project: default
   source:
@@ -28,7 +28,7 @@ spec:
             type: LoadBalancer
   destination:
     server: https://kubernetes.default.svc
-    namespace: monitoring
+    namespace: ${MONITORING_NAMESPACE}
   syncPolicy:
     automated:
       prune: true

@@ -54,10 +54,34 @@ variable "node_groups" {
       instance_types = ["t3.micro"]
       capacity_type  = "ON_DEMAND"
       scaling_config = {
-        desired_size = 2
+        desired_size = 1
         max_size     = 3
-        min_size     = 2
+        min_size     = 1
       }
     }
   }
+}
+
+variable "app_namespace" {
+  description = "Kubernetes namespace for the application"
+  type        = string
+  default     = "my-app-namespace"
+}
+
+variable "monitoring_namespace" {
+  description = "Kubernetes namespace for monitoring tools"
+  type        = string
+  default     = "monitoring"
+}
+
+variable "argocd_namespace" {
+  description = "Kubernetes namespace for ArgoCD"
+  type        = string
+  default     = "argocd"
+}
+
+variable "app_name" {
+  description = "Name of the application"
+  type        = string
+  default     = "my-app"
 }

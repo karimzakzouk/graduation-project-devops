@@ -1,5 +1,4 @@
 name: Terraform Destroy Workflow
-
 on:
   workflow_dispatch:
 
@@ -7,25 +6,48 @@ jobs:
   terraform-destroy:
     name: Terraform Destroy
     runs-on: ubuntu-latest
-
+    environment: production
+    
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
-
+        
+      - name: Verify Variables Available
+        run: |
+          echo "CLUSTER_NAME: ${{ vars.CLUSTER_NAME }}"
+          echo "NAMESPACE: ${{ vars.APP_NAMESPACE }}"
+          echo "MONITORING_NAMESPACE: ${{ vars.MONITORING_NAMESPACE }}"
+          echo "ARGOCD_NAMESPACE: ${{ vars.ARGOCD_NAMESPACE }}"
+          if [[ -z "${{ vars.CLUSTER_NAME }}" ]]; then
+            echo "ERROR: CLUSTER_NAME variable not found. Infrastructure may not be deployed."
+            exit 1
+          fi
+          if [[ -z "${{ vars.APP_NAMESPACE }}" ]]; then
+            echo "ERROR: APP_NAMESPACE variable not found. Infrastructure may not be deployed."
+            exit 1
+          fi
+        
       - name: Login to AWS
         uses: aws-actions/configure-aws-credentials@v4.3.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-
+          
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3.1.2
         with:
           terraform_version: 1.5.7
-
+          
       - name: Update kubeconfig
-        run: aws eks update-kubeconfig --name otel-cluster --region us-east-1
+        run: aws eks update-kubeconfig --name ${{ vars.CLUSTER_NAME }} --region us-east-1
+        continue-on-error: true
+        
+      - name: Install Helm
+        uses: azure/setup-helm@v4.2.0
+        with:
+          version: v3.14.0
+        continue-on-error: true
 
       # ---------------------------
       # Delete ArgoCD Applications
@@ -34,24 +56,27 @@ jobs:
         run: |
           kubectl delete application my-app -n argocd --ignore-not-found
           kubectl delete application kube-prometheus-stack -n argocd --ignore-not-found
+        continue-on-error: true
 
       # ---------------------------
       # Uninstall Helm Releases
       # ---------------------------
       - name: Uninstall Helm Releases
         run: |
-          helm uninstall my-app -n my-app-namespace || true
-          helm uninstall kube-prometheus-stack -n monitoring || true
-          helm uninstall argocd -n argocd || true
+          helm uninstall my-app -n ${{ vars.APP_NAMESPACE }} || true
+          helm uninstall kube-prometheus-stack -n ${{ vars.MONITORING_NAMESPACE }} || true
+          helm uninstall argocd -n ${{ vars.ARGOCD_NAMESPACE }} || true
+        continue-on-error: true
 
       # ---------------------------
       # Delete Namespaces
       # ---------------------------
       - name: Delete Namespaces
         run: |
-          kubectl delete namespace my-app-namespace --ignore-not-found
-          kubectl delete namespace monitoring --ignore-not-found
-          kubectl delete namespace argocd --ignore-not-found
+          kubectl delete namespace ${{ vars.APP_NAMESPACE }} --ignore-not-found
+          kubectl delete namespace ${{ vars.MONITORING_NAMESPACE }} --ignore-not-found
+          kubectl delete namespace ${{ vars.ARGOCD_NAMESPACE }} --ignore-not-found
+        continue-on-error: true
 
       # ---------------------------
       # Delete CRDs (Prometheus & Grafana)
@@ -59,6 +84,7 @@ jobs:
       - name: Delete CRDs
         run: |
           kubectl get crd -o name | grep -E 'prometheus|grafana|alertmanager|servicemonitor|prometheusrule' | xargs -r kubectl delete || true
+        continue-on-error: true
 
       # ---------------------------
       # Cleanup PVCs & PVs
@@ -67,6 +93,13 @@ jobs:
         run: |
           kubectl delete pvc --all -A || true
           kubectl delete pv --all || true
+        continue-on-error: true
+
+      # ---------------------------
+      # Wait for cleanup to complete
+      # ---------------------------
+      - name: Wait for cleanup
+        run: sleep 30
 
       # ---------------------------
       # Terraform Destroy
@@ -74,7 +107,24 @@ jobs:
       - name: Terraform Init
         run: terraform init
         working-directory: ./Terraform
-
+        
+      - name: Terraform Destroy Plan
+        run: terraform plan -destroy
+        working-directory: ./Terraform
+        
       - name: Terraform Destroy
         run: terraform destroy -auto-approve
         working-directory: ./Terraform
+
+      # ---------------------------
+      # Clean up GitHub Variables
+      # ---------------------------
+      - name: Remove GitHub repository variables
+        run: |
+          gh variable delete CLUSTER_NAME --repo $GITHUB_REPOSITORY || true
+          gh variable delete APP_NAMESPACE --repo $GITHUB_REPOSITORY || true
+          gh variable delete MONITORING_NAMESPACE --repo $GITHUB_REPOSITORY || true
+          gh variable delete ARGOCD_NAMESPACE --repo $GITHUB_REPOSITORY || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
