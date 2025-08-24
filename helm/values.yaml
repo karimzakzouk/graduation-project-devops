@@ -12,6 +12,4 @@ service:
   targetPort: 3000
 
 mongo:
-  uri: ""       
-  username: ""   
-  password: ""   
+  existingSecret: mongo-secrets
