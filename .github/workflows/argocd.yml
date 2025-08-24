@@ -65,7 +65,3 @@ jobs:
             --create-namespace \
             --set server.service.type=LoadBalancer \
             --wait
-
-      - name: Create Application Namespace
-        run: |
-          kubectl create namespace ${{ inputs.app_namespace }} --dry-run=client -o yaml | kubectl apply -f -

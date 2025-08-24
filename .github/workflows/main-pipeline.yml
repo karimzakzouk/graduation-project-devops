@@ -182,7 +182,7 @@ jobs:
   # Monitoring - runs first after ArgoCD
   monitoring:
     name: Deploy Monitoring Stack
-    needs: [argocd, detect-changes]
+    needs: [terraform, argocd, detect-changes]
     if: |
       !cancelled() &&
       !inputs.skip-monitoring && 
@@ -209,7 +209,7 @@ jobs:
   # Application Deployment - runs after monitoring completes
   deployment:
     name: Deploy Application
-    needs: [monitoring, detect-changes]
+    needs: [terraform, monitoring, detect-changes]
     if: |
       !cancelled() &&
       !inputs.skip-deployment && 
@@ -236,7 +236,7 @@ jobs:
   # Show endpoints - runs after deployment completes
   show-endpoints:
     name: Show Service Endpoints
-    needs: [detect-changes, deployment, monitoring]
+    needs: [terraform, detect-changes, deployment, monitoring]
     if: |
       !cancelled() && (
         (github.event_name == 'workflow_dispatch') ||
