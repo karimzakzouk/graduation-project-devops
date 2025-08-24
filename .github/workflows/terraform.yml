@@ -30,7 +30,7 @@ jobs:
     outputs:
       result: ${{ steps.terraform-action.outcome }}
       cluster_name: ${{ steps.terraform-outputs.outputs.cluster_name }}
-      namespace: ${{ steps.terraform-outputs.outputs.app_namespace }}
+      app_namespace: ${{ steps.terraform-outputs.outputs.app_namespace }}
       monitoring_namespace: ${{ steps.terraform-outputs.outputs.monitoring_namespace }}  
       argocd_namespace: ${{ steps.terraform-outputs.outputs.argocd_namespace }}          
       app_name: ${{ steps.terraform-outputs.outputs.app_name }} 
