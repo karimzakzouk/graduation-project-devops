@@ -1,4 +1,4 @@
-name: Kubernetes Deployment
+name: ArgoCD Deployment
 on:
   workflow_dispatch:
   workflow_call:
@@ -10,26 +10,43 @@ on:
         type: string
 
 jobs:
-  deploy:
-    name: Deploy to Kubernetes
+  argocd:
+    name: ArgoCD & Monitoring Deployment
     runs-on: ubuntu-latest
     environment: production
-    
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
-        
+
       - name: Login to AWS
         uses: aws-actions/configure-aws-credentials@v4.3.1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-          
+
       - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name ${{ vars.CLUSTER_NAME }} --region us-east-1
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4.2.0
+        with:
+          version: v3.14.0
+
+      - name: Add ArgoCD Helm Repo
         run: |
-          aws eks update-kubeconfig --name ${{ vars.CLUSTER_NAME }} --region us-east-1
-          
+          helm repo add argo https://argoproj.github.io/argo-helm
+          helm repo update
+
+      - name: Install/Upgrade ArgoCD
+        run: |
+          helm upgrade --install argocd argo/argo-cd \
+            --namespace ${{ vars.ARGOCD_NAMESPACE }} \
+            --create-namespace \
+            --set server.service.type=LoadBalancer \
+            --wait
+
       - name: Create Application Namespace
         run: |
           kubectl create namespace ${{ vars.APP_NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -

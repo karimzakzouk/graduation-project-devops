@@ -3,21 +3,6 @@ name: Docker Build and Push
 on:
   workflow_dispatch:
   workflow_call:
-    inputs:
-      push-image:
-        description: 'Whether to push the Docker image'
-        required: false
-        default: true
-        type: boolean
-    outputs:
-      image-tag:
-        description: "Docker image tag"
-        value: ${{ jobs.docker-build.outputs.image-tag }}
-
-env:
-  MONGO_URI: ${{ secrets.MONGO_URI }}
-  MONGO_USERNAME: ${{ secrets.MONGO_USERNAME }}
-  MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
 
 jobs:
   docker-build:
@@ -48,7 +33,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: true
+          push: false
           tags: |
             docker.io/${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}:${{ github.sha }}
             ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }}
@@ -60,15 +45,15 @@ jobs:
           
           # Debug: Check if secrets are available
           echo "Checking environment variables:"
-          echo "MONGO_URI length: ${#MONGO_URI}"
+          echo "MONGO_URI length: ${#${{ secrets.MONGO_URI }}}"
           echo "MONGO_USERNAME: $MONGO_USERNAME"
           
           # Start the container
           docker run --name solar-system-app -d \
             -p 3000:3000 \
-            -e MONGO_URI="$MONGO_URI" \
-            -e MONGO_USERNAME="$MONGO_USERNAME" \
-            -e MONGO_PASSWORD="$MONGO_PASSWORD" \
+            -e MONGO_URI="${{ secrets.MONGO_URI }}" \
+            -e MONGO_USERNAME="${{ secrets.MONGO_USERNAME }}" \
+            -e MONGO_PASSWORD="${{ secrets.MONGO_PASSWORD }}" \
             ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:${{ github.sha }}
 
           # Wait for container to start
@@ -98,7 +83,6 @@ jobs:
           fi
 
       - name: Push Docker Image
-        if: ${{ inputs.push-image != false }}
         uses: docker/build-push-action@v6
         with:
           context: .

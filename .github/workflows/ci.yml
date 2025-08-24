@@ -8,11 +8,6 @@ on:
         description: "Test execution result"
         value: ${{ jobs.code-coverage.outputs.result }}
 
-env:
-  MONGO_URI: ${{ secrets.MONGO_URI }}
-  MONGO_USERNAME: ${{ secrets.MONGO_USERNAME }}
-  MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
-
 jobs:
   unit-testing:
     name: Unit Testing

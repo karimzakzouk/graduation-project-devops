@@ -2,22 +2,6 @@ name: Terraform Infrastructure
 on:
   workflow_dispatch:
   workflow_call:
-    inputs:
-      terraform-action:
-        description: 'Terraform action to perform (plan/apply)'
-        required: false
-        default: 'apply'
-        type: string
-    outputs:
-      cluster_name:
-        description: "EKS cluster name"
-        value: ${{ jobs.terraform.outputs.cluster_name }}
-      namespace:
-        description: "Kubernetes namespace for the application"
-        value: ${{ jobs.terraform.outputs.app_namespace }}
-      terraform-result:
-        description: "Terraform execution result"
-        value: ${{ jobs.terraform.outputs.result }}
 
 jobs:
   terraform:
@@ -55,7 +39,6 @@ jobs:
         
       - name: Terraform Apply
         id: terraform-action
-        if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
         run: terraform apply -auto-approve
         working-directory: ./Terraform
 
@@ -98,48 +81,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
         working-directory: ./Terraform
-
-      # ---------------------------
-      # Install ArgoCD with Helm (using GitHub variables)
-      # ---------------------------
-      - name: Update kubeconfig
-        if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
-        run: aws eks update-kubeconfig --name $CLUSTER_NAME --region us-east-1
-
-      - name: Install Helm
-        if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
-        uses: azure/setup-helm@v4.2.0
-        with:
-          version: v3.14.0
-          
-      - name: Add ArgoCD Helm Repo
-        if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
-        run: |
-          helm repo add argo https://argoproj.github.io/argo-helm
-          helm repo update
-          
-      - name: Install/Upgrade ArgoCD
-        if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
-        run: |
-          helm upgrade --install argocd argo/argo-cd \
-            --namespace $ARGOCD_NAMESPACE \
-            --create-namespace \
-            --set server.service.type=LoadBalancer \
-            --wait
-
-      - name: Create Grafana Secret
-        if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
-        run: |
-          kubectl create namespace $MONITORING_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
-          kubectl create secret generic grafana-admin-secret \
-            --from-literal=admin-user=admin \
-            --from-literal=admin-password='${{ secrets.GRAFANA_ADMIN_PASSWORD }}' \
-            --namespace $MONITORING_NAMESPACE \
-            --dry-run=client -o yaml | kubectl apply -f -
-
-      - name: Deploy Monitoring
-        if: ${{ inputs.terraform-action == 'apply' || inputs.terraform-action == '' }}
-        run: |
-          export MONITORING_NAMESPACE=$MONITORING_NAMESPACE
-          export ARGOCD_NAMESPACE=$ARGOCD_NAMESPACE
-          envsubst < ./argocd/monitoring.yml | kubectl apply -f -
