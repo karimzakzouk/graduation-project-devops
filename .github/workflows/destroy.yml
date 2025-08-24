@@ -18,6 +18,7 @@ jobs:
           echo "NAMESPACE: ${{ vars.APP_NAMESPACE }}"
           echo "MONITORING_NAMESPACE: ${{ vars.MONITORING_NAMESPACE }}"
           echo "ARGOCD_NAMESPACE: ${{ vars.ARGOCD_NAMESPACE }}"
+          echo "APP_NAME: ${{ vars.APP_NAME }}"
           if [[ -z "${{ vars.CLUSTER_NAME }}" ]]; then
             echo "ERROR: CLUSTER_NAME variable not found. Infrastructure may not be deployed."
             exit 1
@@ -54,8 +55,8 @@ jobs:
       # ---------------------------
       - name: Delete ArgoCD Applications
         run: |
-          kubectl delete application my-app -n argocd --ignore-not-found
-          kubectl delete application kube-prometheus-stack -n argocd --ignore-not-found
+          kubectl delete application ${{ vars.APP_NAME }} -n ${{ vars.ARGOCD_NAMESPACE }} --ignore-not-found
+          kubectl delete application kube-prometheus-stack -n ${{ vars.ARGOCD_NAMESPACE }} --ignore-not-found
         continue-on-error: true
 
       # ---------------------------
@@ -63,7 +64,7 @@ jobs:
       # ---------------------------
       - name: Uninstall Helm Releases
         run: |
-          helm uninstall my-app -n ${{ vars.APP_NAMESPACE }} || true
+          helm uninstall ${{ vars.APP_NAME }} -n ${{ vars.APP_NAMESPACE }} || true
           helm uninstall kube-prometheus-stack -n ${{ vars.MONITORING_NAMESPACE }} || true
           helm uninstall argocd -n ${{ vars.ARGOCD_NAMESPACE }} || true
         continue-on-error: true
@@ -125,6 +126,7 @@ jobs:
           gh variable delete APP_NAMESPACE --repo $GITHUB_REPOSITORY || true
           gh variable delete MONITORING_NAMESPACE --repo $GITHUB_REPOSITORY || true
           gh variable delete ARGOCD_NAMESPACE --repo $GITHUB_REPOSITORY || true
+          gh variable delete APP_NAME --repo $GITHUB_REPOSITORY || true
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
         continue-on-error: true
