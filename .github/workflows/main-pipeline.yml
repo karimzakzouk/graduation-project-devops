@@ -110,7 +110,7 @@ jobs:
     if: |
       !cancelled() && 
       !inputs.skip-docker && 
-      (needs.ci.result == 'success' || needs.ci.result == 'skipped') && (
+      (needs.ci.result == 'success' || (needs.ci.result == 'skipped' && inputs.skip-tests)) && (
         inputs.force-all || 
         (github.event_name == 'workflow_dispatch') ||
         needs.detect-changes.outputs.app-changed == 'true'
@@ -130,7 +130,7 @@ jobs:
     if: |
       !cancelled() &&
       !inputs.skip-terraform && 
-      (needs.docker.result == 'success' || needs.docker.result == 'skipped') && (
+      (needs.docker.result == 'success' || (needs.docker.result == 'skipped' && inputs.skip-docker)) && (
         inputs.force-all || 
         (github.event_name == 'workflow_dispatch') ||
         needs.detect-changes.outputs.infra-changed == 'true'
@@ -150,7 +150,7 @@ jobs:
     if: |
       !cancelled() &&
       !inputs.skip-argocd && 
-      (needs.terraform.result == 'success' || needs.terraform.result == 'skipped') && (
+      (needs.terraform.result == 'success' || (needs.terraform.result == 'skipped' && inputs.skip-terraform)) && (
         inputs.force-all || 
         (github.event_name == 'workflow_dispatch') ||
         needs.detect-changes.outputs.infra-changed == 'true'
@@ -170,7 +170,7 @@ jobs:
     if: |
       !cancelled() &&
       !inputs.skip-deployment && 
-      (needs.argocd.result == 'success' || needs.argocd.result == 'skipped') && (
+      (needs.argocd.result == 'success' || (needs.argocd.result == 'skipped' && inputs.skip-argocd)) && (
         inputs.force-all || 
         (github.event_name == 'workflow_dispatch') ||
         needs.detect-changes.outputs.infra-changed == 'true'
@@ -190,7 +190,7 @@ jobs:
     if: |
       !cancelled() &&
       !inputs.skip-monitoring && 
-      (needs.deployment.result == 'success' || needs.deployment.result == 'skipped') && (
+      (needs.deployment.result == 'success' || (needs.deployment.result == 'skipped' && inputs.skip-deployment)) && (
         inputs.force-all || 
         (github.event_name == 'workflow_dispatch') ||
         needs.detect-changes.outputs.infra-changed == 'true'
