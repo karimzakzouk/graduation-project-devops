@@ -43,7 +43,7 @@ jobs:
         run: |
           helm upgrade --install ${{ vars.APP_NAME }} ./helm \
             --namespace ${{ vars.APP_NAMESPACE }} \
-            --set namespace=${{ vars.APP_NAMESPACE }} \
+            -
             --set mongo.uri="${{ secrets.MONGO_URI }}" \
             --set mongo.username="${{ secrets.MONGO_USERNAME }}" \
             --set mongo.password="${{ secrets.MONGO_PASSWORD }}" \
@@ -59,13 +59,22 @@ jobs:
       - name: Print Service Endpoints
         run: |
           echo "================= SERVICE ENDPOINTS ================="
-          echo "ArgoCD: http://$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')"
-          echo "Prometheus: http://$(kubectl get svc kube-prometheus-stack-prometheus -n monitoring -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found'):9090"
-          echo "Grafana: http://$(kubectl get svc kube-prometheus-stack-grafana -n monitoring -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')"
-          echo "App: http://$(kubectl get svc my-app-svc -n ${{ vars.APP_NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')"
+          
+          ARGOCD_HOST=$(kubectl get svc argocd-server -n ${{ vars.ARGOCD_NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')
+          PROM_HOST=$(kubectl get svc kube-prometheus-stack-prometheus -n ${{ vars.MONITORING_NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')
+          GRAFANA_HOST=$(kubectl get svc kube-prometheus-stack-grafana -n ${{ vars.MONITORING_NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')
+          APP_HOST=$(kubectl get svc ${{ vars.APP_NAME }}-svc -n ${{ vars.APP_NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')
+          
+          echo "ArgoCD: http://$ARGOCD_HOST"
+          echo "Prometheus: http://$PROM_HOST:9090"
+          echo "Grafana: http://$GRAFANA_HOST"
+          echo "App: http://$APP_HOST"
+          
           echo "================= DEFAULT CREDENTIALS ================="
+          ARGOCD_PASS=$(kubectl -n ${{ vars.ARGOCD_NAMESPACE }} get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || echo 'Not found')
+          
           echo "ArgoCD -> Username: admin"
-          echo "ArgoCD -> Password: $(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || echo 'Not found')"
+          echo "ArgoCD -> Password: $ARGOCD_PASS"
           echo "Grafana -> Username: admin"
           echo "Grafana -> Password: ${{ secrets.GRAFANA_PASSWORD }}"
-          echo "Prometheus -> No login needed (anonymous access by default)"s
+          echo "Prometheus -> No login needed (anonymous access by default)"
