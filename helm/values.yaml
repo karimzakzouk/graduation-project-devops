@@ -4,7 +4,7 @@ image:
   repository: docker.io/karimzakzouk/graduation-project-devops
   pullPolicy: IfNotPresent
 
-  tag: "d2f7954d8d8617303beb1e8e4b724470447f909f"
+  tag: ba6e9ae56f0ba403cfe6a0a8d95e41bc8d82773f
 
 service:
   type: LoadBalancer
