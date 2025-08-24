@@ -43,7 +43,6 @@ jobs:
         run: |
           helm upgrade --install ${{ vars.APP_NAME }} ./helm \
             --namespace ${{ vars.APP_NAMESPACE }} \
-            -
             --set mongo.uri="${{ secrets.MONGO_URI }}" \
             --set mongo.username="${{ secrets.MONGO_USERNAME }}" \
             --set mongo.password="${{ secrets.MONGO_PASSWORD }}" \
