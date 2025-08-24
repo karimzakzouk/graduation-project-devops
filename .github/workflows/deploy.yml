@@ -53,14 +53,14 @@ jobs:
         run: |
           kubectl create namespace ${{ inputs.app_namespace }} --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Deploy Helm Chart
+      - name: Apply Secrets
         run: |
-          helm upgrade --install ${{ inputs.app_name }} ./helm \
-            --namespace ${{ inputs.app_namespace }} \
-            --set mongo.uri="${{ secrets.MONGO_URI }}" \
-            --set mongo.username="${{ secrets.MONGO_USERNAME }}" \
-            --set mongo.password="${{ secrets.MONGO_PASSWORD }}" \
-            --set image.tag="${{ inputs.image_tag || github.sha }}"
+          kubectl create secret generic mongo-secrets \
+            --from-literal=uri="${{ secrets.MONGO_URI }}" \
+            --from-literal=username="${{ secrets.MONGO_USERNAME }}" \
+            --from-literal=password="${{ secrets.MONGO_PASSWORD }}" \
+            -n ${{ inputs.app_namespace }} --dry-run=client -o yaml | kubectl apply -f -
+
 
       - name: Deploy ArgoCD Applications
         run: |

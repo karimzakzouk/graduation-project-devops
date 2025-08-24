@@ -19,3 +19,11 @@ spec:
     automated:
       prune: true
       selfHeal: true
+
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: mongo-secrets
+      namespace: ${APP_NAMESPACE}
+      jsonPointers:
+        - /data
