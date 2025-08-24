@@ -53,6 +53,13 @@ jobs:
         run: |
           kubectl create namespace ${{ inputs.app_namespace }} --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Deploy ArgoCD Applications
+        run: |
+          export APP_NAME=${{ inputs.app_name }}
+          export APP_NAMESPACE=${{ inputs.app_namespace }}
+          export ARGOCD_NAMESPACE=${{ inputs.argocd_namespace }}
+          envsubst < ./argocd/application.yml | kubectl apply -f -
+                
       - name: Apply Secrets
         run: |
           kubectl create secret generic mongo-secrets \
@@ -60,13 +67,3 @@ jobs:
             --from-literal=MONGO_USERNAME="${{ secrets.MONGO_USERNAME }}" \
             --from-literal=MONGO_PASSWORD="${{ secrets.MONGO_PASSWORD }}" \
             -n ${{ inputs.app_namespace }} --dry-run=client -o yaml | kubectl apply -f -
-
-
-
-      - name: Deploy ArgoCD Applications
-        run: |
-          export APP_NAME=${{ inputs.app_name }}
-          export APP_NAMESPACE=${{ inputs.app_namespace }}
-          export ARGOCD_NAMESPACE=${{ inputs.argocd_namespace }}
-          envsubst < ./argocd/application.yml | kubectl apply -f -
-            
