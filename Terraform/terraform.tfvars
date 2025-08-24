@@ -17,7 +17,7 @@ cluster_version = "1.30"
 node_groups = {
   # Development/Testing - Small instances
   general = {
-    instance_types = ["t3.medium"]  # Upgraded from t3.micro for better performance
+    instance_types = ["t3.micro"]  # Upgraded from t3.micro for better performance
     capacity_type  = "ON_DEMAND"
     scaling_config = {
       desired_size = 2   # Increased for HA
