@@ -96,7 +96,7 @@ jobs:
           gh variable set ARGOCD_NAMESPACE --body "$ARGOCD_NAMESPACE" --repo $GITHUB_REPOSITORY
           gh variable set APP_NAME --body "$APP_NAME" --repo $GITHUB_REPOSITORY
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
         working-directory: ./Terraform
 
       # ---------------------------
