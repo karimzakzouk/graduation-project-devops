@@ -117,8 +117,6 @@ jobs:
       actions: read
     uses: ./.github/workflows/docker.yml
     secrets: inherit
-    with:
-      push-image: true
 
   # Terraform changes: Terraform + ArgoCD + Deploy + Monitoring
   terraform:
@@ -132,8 +130,6 @@ jobs:
       packages: write
       id-token: write
       actions: read
-    with:
-      terraform-action: 'apply'
 
   # ArgoCD changes OR when terraform changes
   argocd:

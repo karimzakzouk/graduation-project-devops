@@ -2,13 +2,6 @@ name: Kubernetes Deployment
 on:
   workflow_dispatch:
   workflow_call:
-    inputs:
-      image-tag:
-        description: 'Docker image tag to deploy'
-        required: false
-        default: ''
-        type: string
-
 jobs:
   deploy:
     name: Deploy to Kubernetes
