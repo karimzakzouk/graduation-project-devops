@@ -93,7 +93,7 @@ jobs:
       - name: Update Helm values with new image tag
         run: |
           sed -i "s|repository: .*|repository: docker.io/${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}|g" ./helm/values.yaml
-
+          sed -i "s|tag: .*|tag: ${{ github.sha }}|g" ./helm/values.yaml
       - name: Commit updated image tag
         run: |
           git config --local user.email "action@github.com"
