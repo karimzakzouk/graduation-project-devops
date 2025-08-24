@@ -45,7 +45,6 @@ jobs:
           
           # Debug: Check if secrets are available
           echo "Checking environment variables:"
-          echo "MONGO_URI length: ${#${{ secrets.MONGO_URI }}}"
           echo "MONGO_USERNAME: $MONGO_USERNAME"
           
           # Start the container
