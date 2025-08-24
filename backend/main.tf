@@ -7,6 +7,8 @@ resource "aws_s3_bucket" "terraform_state" {
   bucket = "solar-system-terraform-state-123456" # change to unique name
   acl    = "private"
 
+  force_destroy = true
+
   versioning {
     enabled = true
   }

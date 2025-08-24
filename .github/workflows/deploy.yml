@@ -64,21 +64,6 @@ jobs:
             --set mongo.username="${{ secrets.MONGO_USERNAME }}" \
             --set mongo.password="${{ secrets.MONGO_PASSWORD }}" \
             --set image.tag="$IMAGE_TAG"
-
-      # ✅ Update values.yaml for ArgoCD tracking
-      - name: Update Helm values with new image tag
-        run: |
-          IMAGE_TAG=${{ inputs.image-tag || github.sha }}
-          sed -i "s|tag: \".*\"|tag: \"$IMAGE_TAG\"|g" ./helm/values.yaml
-          
-      - name: Commit updated image tag
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add helm/values.yaml
-          git commit -m "Update image tag to ${{ inputs.image-tag || github.sha }}" || exit 0
-          git push https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-      
       - name: Create Application Namespace
         run: |
           kubectl create namespace my-app-namespace --dry-run=client -o yaml | kubectl apply -f -

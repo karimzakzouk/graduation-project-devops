@@ -110,3 +110,14 @@ jobs:
           tags: |
             docker.io/${{ secrets.DOCKER_USERNAME }}/graduation-project-devops:${{ github.sha }}
             ghcr.io/${{ secrets.DOCKER_USERNAME }}/graduation-project-devops:${{ github.sha }}
+      - name: Update Helm values with new image tag
+        run: |
+          sed -i "s|tag: \".*\"|tag: \"${{ github.sha }}\"|g" ./helm/values.yaml
+          
+      - name: Commit updated image tag
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add helm/values.yaml
+          git commit -m "Update image tag to ${{ github.sha }}" || exit 0
+          git push https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
