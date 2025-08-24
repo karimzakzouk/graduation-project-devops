@@ -1,5 +1,7 @@
 name: Solar System - Main Pipeline
 on:
+  push:                     # ← ADDED: Auto-trigger on push
+    branches: [main]
   workflow_dispatch:
     inputs:
       skip-tests:
@@ -22,6 +24,11 @@ on:
         required: false
         default: false
         type: boolean
+      force-all:              # ← ADDED: Force all workflows
+        description: 'Force run all workflows (ignore path detection)'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -30,12 +37,50 @@ permissions:
   actions: read
 
 jobs:
+  # ← NEW: Detect what changed
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      app-changed: ${{ steps.changes.outputs.app }}
+      terraform-changed: ${{ steps.changes.outputs.terraform }}
+      k8s-changed: ${{ steps.changes.outputs.k8s }}
+      any-changed: ${{ steps.changes.outputs.app == 'true' || steps.changes.outputs.terraform == 'true' || steps.changes.outputs.k8s == 'true' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+          
+      - name: Detect file changes
+        uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            app:
+              - 'app-controllers/**'
+              - 'app-test.js'
+              - 'app.js' 
+              - 'index.html'
+              - 'Dockerfile'
+              - 'package*.json'
+              - 'images/**'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/docker.yml'
+            terraform:
+              - 'Terraform/**'
+              - '.github/workflows/terraform.yml'
+            k8s:
+              - 'argocd/**'
+              - '.github/workflows/deploy.yml'
+
   ci:
     name: Run CI Tests
-    if: ${{ !inputs.skip-tests }}
+    needs: [detect-changes]
+    if: ${{ !inputs.skip-tests && (inputs.force-all || needs.detect-changes.outputs.app-changed == 'true' || github.event_name == 'workflow_dispatch') }}
     uses: ./.github/workflows/ci.yml
     secrets: inherit
-    permissions:  
+    permissions:
       contents: write
       packages: write
       id-token: write
@@ -43,10 +88,10 @@ jobs:
 
   docker:
     name: Build Docker Image
-    if: ${{ !inputs.skip-docker && (success() || inputs.skip-tests) }}
-    needs: [ci]
+    if: ${{ !inputs.skip-docker && (success() || inputs.skip-tests) && (inputs.force-all || needs.detect-changes.outputs.app-changed == 'true' || github.event_name == 'workflow_dispatch') }}
+    needs: [ci, detect-changes]
     permissions:
-      contents: write    
+      contents: write
       packages: write
       id-token: write
       actions: read
@@ -57,8 +102,8 @@ jobs:
 
   terraform:
     name: Deploy Infrastructure
-    if: ${{ !inputs.skip-terraform && (success() || (inputs.skip-tests && inputs.skip-docker)) }}
-    needs: [docker]
+    if: ${{ !inputs.skip-terraform && (success() || (inputs.skip-tests && inputs.skip-docker)) && (inputs.force-all || needs.detect-changes.outputs.terraform-changed == 'true' || github.event_name == 'workflow_dispatch') }}
+    needs: [docker, detect-changes]
     uses: ./.github/workflows/terraform.yml
     secrets: inherit
     permissions:
@@ -71,8 +116,8 @@ jobs:
 
   deploy:
     name: Deploy Application
-    if: ${{ !inputs.skip-deployment && (success() || (inputs.skip-tests && inputs.skip-docker && inputs.skip-terraform)) }}
-    needs: [terraform, docker]
+    if: ${{ !inputs.skip-deployment && (success() || (inputs.skip-tests && inputs.skip-docker && inputs.skip-terraform)) && (inputs.force-all || needs.detect-changes.outputs.k8s-changed == 'true' || needs.detect-changes.outputs.app-changed == 'true' || github.event_name == 'workflow_dispatch') }}
+    needs: [terraform, docker, detect-changes]
     uses: ./.github/workflows/deploy.yml
     secrets: inherit
     permissions:
