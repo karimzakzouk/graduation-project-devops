@@ -54,6 +54,7 @@ jobs:
     outputs:
       app-changed: ${{ steps.changes.outputs.app }}
       infra-changed: ${{ steps.changes.outputs.infra }}
+      is-manual: ${{ github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -83,10 +84,17 @@ jobs:
               - '.github/workflows/deploy.yml'
               - 'argocd/monitoring.yml'
               - '.github/workflows/monitoring.yml'
+
+  # CI Tests - runs when app changes or manual dispatch
   ci:
     name: Run CI Tests
     needs: [detect-changes]
-    if: ${{ !inputs.skip-tests && (inputs.force-all || needs.detect-changes.outputs.app-changed == 'true') }}
+    if: |
+      !inputs.skip-tests && (
+        inputs.force-all || 
+        (github.event_name == 'workflow_dispatch') ||
+        needs.detect-changes.outputs.app-changed == 'true'
+      )
     uses: ./.github/workflows/ci.yml
     secrets: inherit
     permissions:
@@ -95,10 +103,18 @@ jobs:
       id-token: write
       actions: read
 
+  # Docker Build - runs after CI when app changes or manual dispatch
   docker:
     name: Build Docker Image
-    if: ${{ !inputs.skip-docker && (success() || inputs.skip-tests) && (inputs.force-all || needs.detect-changes.outputs.app-changed == 'true') }}
     needs: [ci, detect-changes]
+    if: |
+      !cancelled() && 
+      !inputs.skip-docker && 
+      (needs.ci.result == 'success' || needs.ci.result == 'skipped') && (
+        inputs.force-all || 
+        (github.event_name == 'workflow_dispatch') ||
+        needs.detect-changes.outputs.app-changed == 'true'
+      )
     permissions:
       contents: write
       packages: write
@@ -107,11 +123,18 @@ jobs:
     uses: ./.github/workflows/docker.yml
     secrets: inherit
 
-  # Terraform changes: Terraform + ArgoCD + Deploy + Monitoring
+  # Terraform - runs after docker (for linear flow) when infra changes or manual dispatch
   terraform:
     name: Deploy Infrastructure
-    if: ${{ !inputs.skip-terraform && (inputs.force-all || needs.detect-changes.outputs.infra-changed == 'true') }}
-    needs: [detect-changes]
+    needs: [docker, detect-changes]
+    if: |
+      !cancelled() &&
+      !inputs.skip-terraform && 
+      (needs.docker.result == 'success' || needs.docker.result == 'skipped') && (
+        inputs.force-all || 
+        (github.event_name == 'workflow_dispatch') ||
+        needs.detect-changes.outputs.infra-changed == 'true'
+      )
     uses: ./.github/workflows/terraform.yml
     secrets: inherit
     permissions:
@@ -120,11 +143,18 @@ jobs:
       id-token: write
       actions: read
 
-  # ArgoCD changes OR when terraform changes
+  # ArgoCD - runs after terraform when infra changes or manual dispatch
   argocd:
     name: Deploy ArgoCD Applications
-    if: ${{ !inputs.skip-argocd && (inputs.force-all || needs.detect-changes.outputs.infra-changed == 'true') }} 
-    needs: [detect-changes, terraform]
+    needs: [terraform, detect-changes]
+    if: |
+      !cancelled() &&
+      !inputs.skip-argocd && 
+      (needs.terraform.result == 'success' || needs.terraform.result == 'skipped') && (
+        inputs.force-all || 
+        (github.event_name == 'workflow_dispatch') ||
+        needs.detect-changes.outputs.infra-changed == 'true'
+      )
     uses: ./.github/workflows/argocd.yml
     secrets: inherit
     permissions:
@@ -133,11 +163,18 @@ jobs:
       id-token: write
       actions: read
 
-  # Deploy when: terraform changes OR application.yml changes
+  # Application Deployment - runs after ArgoCD when infra changes or manual dispatch
   deployment:
     name: Deploy Application
-    if: ${{ !inputs.skip-deployment && (inputs.force-all || needs.detect-changes.outputs.infra-changed == 'true') }}
-    needs: [detect-changes, argocd]
+    needs: [argocd, detect-changes]
+    if: |
+      !cancelled() &&
+      !inputs.skip-deployment && 
+      (needs.argocd.result == 'success' || needs.argocd.result == 'skipped') && (
+        inputs.force-all || 
+        (github.event_name == 'workflow_dispatch') ||
+        needs.detect-changes.outputs.infra-changed == 'true'
+      )
     uses: ./.github/workflows/deploy.yml
     secrets: inherit
     permissions:
@@ -146,11 +183,18 @@ jobs:
       id-token: write
       actions: read
 
-  # Monitoring when: terraform changes OR monitoring.yml changes  
+  # Monitoring - runs after deployment when infra changes or manual dispatch
   monitoring:
     name: Deploy Monitoring Stack
-    if: ${{ !inputs.skip-monitoring && (inputs.force-all || needs.detect-changes.outputs.infra-changed == 'true') }}
-    needs: [detect-changes, argocd]
+    needs: [deployment, detect-changes]
+    if: |
+      !cancelled() &&
+      !inputs.skip-monitoring && 
+      (needs.deployment.result == 'success' || needs.deployment.result == 'skipped') && (
+        inputs.force-all || 
+        (github.event_name == 'workflow_dispatch') ||
+        needs.detect-changes.outputs.infra-changed == 'true'
+      )
     uses: ./.github/workflows/monitoring.yml
     secrets: inherit
     permissions:
@@ -159,11 +203,19 @@ jobs:
       id-token: write
       actions: read
 
-  # Print service endpoints when any deployment happens
+  # Show endpoints - runs at the end when any deployment happened
   show-endpoints:
     name: Show Service Endpoints
-    if: always() && needs.detect-changes.outputs.infra-changed == 'true' && (needs.argocd.result == 'success' || needs.deployment.result == 'success' || needs.monitoring.result == 'success')
     needs: [detect-changes, argocd, deployment, monitoring]
+    if: |
+      !cancelled() && (
+        (github.event_name == 'workflow_dispatch') ||
+        (needs.detect-changes.outputs.infra-changed == 'true' && (
+          needs.argocd.result == 'success' || 
+          needs.deployment.result == 'success' || 
+          needs.monitoring.result == 'success'
+        ))
+      )
     uses: ./.github/workflows/endpoints.yml
     secrets: inherit
     permissions:
