@@ -42,3 +42,4 @@ jobs:
           export APP_NAMESPACE=${{ vars.APP_NAMESPACE }}
           export ARGOCD_NAMESPACE=${{ vars.ARGOCD_NAMESPACE }}
           envsubst < ./argocd/application.yml | kubectl apply -f -
+            
