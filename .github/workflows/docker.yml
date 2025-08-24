@@ -15,7 +15,7 @@ on:
         value: ${{ jobs.docker-build.outputs.image-tag }}
 
 permissions:
-  contents: read
+  contents: write
   packages: write
   id-token: write
 
