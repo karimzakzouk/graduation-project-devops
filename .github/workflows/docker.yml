@@ -14,11 +14,6 @@ on:
         description: "Docker image tag"
         value: ${{ jobs.docker-build.outputs.image-tag }}
 
-permissions:
-  contents: write
-  packages: write
-  id-token: write
-
 env:
   MONGO_URI: ${{ secrets.MONGO_URI }}
   MONGO_USERNAME: ${{ secrets.MONGO_USERNAME }}
@@ -28,9 +23,7 @@ jobs:
   docker-build:
     name: Docker Build and Test
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+
     outputs:
       image-tag: ${{ github.sha }}
     

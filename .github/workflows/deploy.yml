@@ -26,10 +26,6 @@ jobs:
     name: Deploy to Kubernetes
     runs-on: ubuntu-latest
     environment: production
-    permissions:
-      contents: write
-      actions: read
-    
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
