@@ -1,7 +1,7 @@
 name: Print Service Endpoints
 on:
-  workflow_call:
   workflow_dispatch:
+  workflow_call:
 
 jobs:
   print-endpoints:
