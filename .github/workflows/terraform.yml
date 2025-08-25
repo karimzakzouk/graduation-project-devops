@@ -22,6 +22,11 @@ on:
         description: "Application name from Terraform outputs"
         value: ${{ jobs.terraform.outputs.app_name }}
 
+
+permissions:
+  id-token: write
+  contents: read
+  actions: read
 jobs:
   terraform:
     name: Terraform Deployment
@@ -38,7 +43,7 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
-        
+
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
