@@ -60,8 +60,10 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::382284572497:role/GitHubActionsInfraRole
+          role-session-name: GitHubActions-${{ github.run_id }}
           aws-region: us-east-1
-          
+          audience: sts.amazonaws.com
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3.1.2
         with:
