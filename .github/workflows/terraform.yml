@@ -23,10 +23,12 @@ on:
         value: ${{ jobs.terraform.outputs.app_name }}
 
 
+
 permissions:
   id-token: write
   contents: read
   actions: read
+
 jobs:
   terraform:
     name: Terraform Deployment
@@ -43,6 +45,16 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
+
+      - name: Debug GitHub Context
+        run: |
+          echo "Repository: ${{ github.repository }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "Event: ${{ github.event_name }}"
+          echo "Expected sub claim: repo:${{ github.repository }}:ref:${{ github.ref }}"
+          echo "Actual repository: karimzakzouk/graduation-project-devops"
+          AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}
+          echo "AWS_ACCOUNT_ID: $AWS_ACCOUNT_ID"
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
