@@ -2,6 +2,11 @@ name: Terraform Destroy Workflow
 on:
   workflow_dispatch:
 
+permissions:
+  id-token: write
+  contents: read
+  actions: read
+
 jobs:
   terraform-destroy:
     name: Terraform Destroy
