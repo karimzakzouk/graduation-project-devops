@@ -6,7 +6,7 @@ A comprehensive Node.js web application demonstrating enterprise-grade DevOps pr
 [![Docker Build](https://github.com/KarimZakzouk/Graduation-Project-Devops/actions/workflows/docker.yml/badge.svg)](https://github.com/KarimZakzouk/Graduation-Project-Devops/actions/workflows/docker.yml)
 [![Terraform](https://github.com/KarimZakzouk/Graduation-Project-Devops/actions/workflows/terraform.yml/badge.svg)](https://github.com/KarimZakzouk/Graduation-Project-Devops/actions/workflows/terraform.yml)
 
----
+--- 
 
 ## 🚀 Project Overview
 
