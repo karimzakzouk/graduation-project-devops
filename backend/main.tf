@@ -37,9 +37,9 @@ resource "aws_dynamodb_table" "terraform_locks" {
 # IAM OIDC Provider for GitHub
 # ----------------------------
 resource "aws_iam_openid_connect_provider" "github" {
-  url             = "https://token.actions.githubusercontent.com"
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
+  url            = "https://token.actions.githubusercontent.com"
+  client_id_list = ["sts.amazonaws.com"]
+  thumbprint_list = ["1c58a3a8518e8759bf075b76b750d4f2df264fcd"]
 }
 
 # ----------------------------
@@ -47,7 +47,6 @@ resource "aws_iam_openid_connect_provider" "github" {
 # ----------------------------
 resource "aws_iam_role" "github_actions_infra_role" {
   name = "GitHubActionsInfraRole"
-
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -59,9 +58,10 @@ resource "aws_iam_role" "github_actions_infra_role" {
         Action = "sts:AssumeRoleWithWebIdentity",
         Condition = {
           StringEquals = {
-            # Replace with your repo path
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-            "token.actions.githubusercontent.com:sub" = "repo:YOUR_GITHUB_USER/YOUR_REPO:ref:refs/heads/main"
+          },
+          StringLike = {
+            "token.actions.githubusercontent.com:sub" = "repo:karimzakzouk/graduation-project-devops:*"
           }
         }
       }
@@ -70,73 +70,89 @@ resource "aws_iam_role" "github_actions_infra_role" {
 }
 
 # ----------------------------
-# Scoped Policy for Infra Role
+# Complete Policy for GitHub Actions
 # ----------------------------
 resource "aws_iam_role_policy" "github_actions_infra_policy" {
   name = "GitHubActionsInfraPolicy"
   role = aws_iam_role.github_actions_infra_role.id
-
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
         Effect = "Allow",
         Action = [
-          # VPC
-          "ec2:CreateVpc",
-          "ec2:DescribeVpcs",
-          "ec2:DeleteVpc",
-          "ec2:CreateSubnet",
-          "ec2:DescribeSubnets",
-          "ec2:DeleteSubnet",
-          "ec2:CreateRouteTable",
-          "ec2:DescribeRouteTables",
-          "ec2:AssociateRouteTable",
-          "ec2:CreateInternetGateway",
-          "ec2:DescribeInternetGateways",
-          "ec2:AttachInternetGateway",
-          "ec2:CreateNatGateway",
-          "ec2:DescribeNatGateways",
-          "ec2:AllocateAddress",
-          "ec2:DescribeAddresses",
-          "ec2:CreateSecurityGroup",
-          "ec2:DescribeSecurityGroups",
-          "ec2:AuthorizeSecurityGroupIngress",
-          "ec2:AuthorizeSecurityGroupEgress",
-          "ec2:DeleteSecurityGroup",
-          "ec2:DeleteRouteTable"
-        ],
-        Resource = "*"
-      },
-      {
-        Effect = "Allow",
-        Action = [
-          # EKS
-          "eks:CreateCluster",
-          "eks:DescribeCluster",
-          "eks:UpdateClusterConfig",
-          "eks:DeleteCluster",
-          "eks:ListClusters",
-          "eks:CreateNodegroup",
-          "eks:DeleteNodegroup"
-        ],
-        Resource = "*"
-      },
-      {
-        Effect = "Allow",
-        Action = [
-          # IAM for node roles
-          "iam:PassRole",
-          "iam:GetRole",
+          # S3 permissions for Terraform state
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket",
+          "s3:GetBucketVersioning",
+          "s3:GetBucketAcl",
+          "s3:GetBucketPolicy",
+          "s3:PutBucketVersioning",
+          "s3:PutBucketAcl",
+          "s3:PutBucketPolicy",
+          "s3:CreateBucket",
+          "s3:DeleteBucket",
+          "s3:GetBucketLocation",
+          "s3:ListAllMyBuckets",
+          
+          # DynamoDB for state locking
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:CreateTable",
+          "dynamodb:DeleteTable",
+          "dynamodb:DescribeTable",
+          "dynamodb:TagResource",
+          "dynamodb:UntagResource",
+          "dynamodb:ListTagsOfResource",
+          
+          # EC2/VPC permissions
+          "ec2:*",
+          
+          # EKS permissions
+          "eks:*",
+          
+          # IAM permissions (be more specific in production)
           "iam:CreateRole",
+          "iam:DeleteRole",
+          "iam:GetRole",
+          "iam:ListRoles",
+          "iam:PassRole",
           "iam:AttachRolePolicy",
-          "iam:PutRolePolicy"
+          "iam:DetachRolePolicy",
+          "iam:ListAttachedRolePolicies",
+          "iam:CreatePolicy",
+          "iam:DeletePolicy",
+          "iam:GetPolicy",
+          "iam:ListPolicies",
+          "iam:GetPolicyVersion",
+          "iam:ListPolicyVersions",
+          "iam:CreatePolicyVersion",
+          "iam:DeletePolicyVersion",
+          "iam:SetDefaultPolicyVersion",
+          "iam:PutRolePolicy",
+          "iam:GetRolePolicy",
+          "iam:DeleteRolePolicy",
+          "iam:ListRolePolicies",
+          "iam:CreateInstanceProfile",
+          "iam:DeleteInstanceProfile",
+          "iam:GetInstanceProfile",
+          "iam:AddRoleToInstanceProfile",
+          "iam:RemoveRoleFromInstanceProfile",
+          "iam:ListInstanceProfiles",
+          "iam:ListInstanceProfilesForRole",
+          "iam:TagRole",
+          "iam:UntagRole",
+          "iam:ListRoleTags",
+          
+          # Additional permissions for EKS
+          "autoscaling:*",
+          "logs:*",
+          "application-autoscaling:*"
         ],
-        Resource = [
-          # Node roles your workflow will create
-          "arn:aws:iam::*:role/*-node-role",
-          "arn:aws:iam::*:role/*-cluster-role"
-        ]
+        Resource = "*"
       }
     ]
   })
