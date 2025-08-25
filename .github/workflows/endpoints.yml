@@ -35,11 +35,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - name: Login to AWS
-        uses: aws-actions/configure-aws-credentials@v4.3.1
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsInfraRole
           aws-region: us-east-1
           
       - name: Update kubeconfig
