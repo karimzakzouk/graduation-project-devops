@@ -71,7 +71,7 @@ jobs:
               - 'app.py' 
               - 'index.html'
               - 'Dockerfile'
-              - 'images/**'
+              - 'static/**'
               - '.github/workflows/ci.yml'
               - '.github/workflows/docker.yml'
             infra:
