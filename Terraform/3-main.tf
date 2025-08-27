@@ -25,4 +25,3 @@ resource "aws_eks_addon" "metrics_server" {
   addon_version     = null
   resolve_conflicts = "OVERWRITE"
 }
-

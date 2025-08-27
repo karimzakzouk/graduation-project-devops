@@ -24,10 +24,9 @@ spec:
             annotations:
               nginx.ingress.kubernetes.io/rewrite-target: /
             hosts:
-              - host: monitoring.yourdomain.com
-                paths:
-                  - path: /prometheus
-                    pathType: Prefix
+              - monitoring.yourdomain.com
+            paths:
+              - /prometheus
         
         grafana:
           service:
@@ -41,10 +40,8 @@ spec:
             annotations:
               nginx.ingress.kubernetes.io/rewrite-target: /
             hosts:
-              - host: monitoring.yourdomain.com
-                paths:
-                  - path: /grafana
-                    pathType: Prefix
+              - monitoring.yourdomain.com
+            path: /grafana
         
         alertmanager:
           service:
@@ -55,10 +52,9 @@ spec:
             annotations:
               nginx.ingress.kubernetes.io/rewrite-target: /
             hosts:
-              - host: monitoring.yourdomain.com
-                paths:
-                  - path: /alertmanager
-                    pathType: Prefix
+              - monitoring.yourdomain.com
+            paths:
+              - /alertmanager
 
   destination:
     server: https://kubernetes.default.svc
