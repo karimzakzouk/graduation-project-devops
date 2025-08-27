@@ -20,9 +20,9 @@ resource "aws_s3_bucket" "terraform_state" {
 
 # DynamoDB Table for state locking
 resource "aws_dynamodb_table" "terraform_locks" {
-  name           = "solar-system-terraform-locks"
-  billing_mode   = "PAY_PER_REQUEST"
-  hash_key       = "LockID"
+  name         = "solar-system-terraform-locks"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "LockID"
 
   attribute {
     name = "LockID"
@@ -37,8 +37,8 @@ resource "aws_dynamodb_table" "terraform_locks" {
 # IAM OIDC Provider for GitHub
 # ----------------------------
 resource "aws_iam_openid_connect_provider" "github" {
-  url            = "https://token.actions.githubusercontent.com"
-  client_id_list = ["sts.amazonaws.com"]
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
   thumbprint_list = ["1c58a3a8518e8759bf075b76b750d4f2df264fcd"]
 }
 
@@ -96,7 +96,7 @@ resource "aws_iam_role_policy" "github_actions_infra_policy" {
           "s3:DeleteBucket",
           "s3:GetBucketLocation",
           "s3:ListAllMyBuckets",
-          
+
           # DynamoDB for state locking
           "dynamodb:GetItem",
           "dynamodb:PutItem",
@@ -107,13 +107,13 @@ resource "aws_iam_role_policy" "github_actions_infra_policy" {
           "dynamodb:TagResource",
           "dynamodb:UntagResource",
           "dynamodb:ListTagsOfResource",
-          
+
           # EC2/VPC permissions
           "ec2:*",
-          
+
           # EKS permissions
           "eks:*",
-          
+
           # IAM permissions (be more specific in production)
           "iam:CreateRole",
           "iam:DeleteRole",
@@ -146,7 +146,7 @@ resource "aws_iam_role_policy" "github_actions_infra_policy" {
           "iam:TagRole",
           "iam:UntagRole",
           "iam:ListRoleTags",
-          
+
           # Additional permissions for EKS
           "autoscaling:*",
           "logs:*",
