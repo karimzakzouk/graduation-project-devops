@@ -16,16 +16,16 @@ spec:
           enabled: true  # Enable CRD installation
         prometheus:
           service:
-            type: ClusterIP
+            type: LoadBalancer
         grafana:
           service:
-            type: ClusterIP
+            type: LoadBalancer
           admin:
             existingSecret: grafana-admin-secret
             passwordKey: admin-password
         alertmanager:
           service:
-            type: ClusterIP
+            type: LoadBalancer
   destination:
     server: https://kubernetes.default.svc
     namespace: ${MONITORING_NAMESPACE}
@@ -37,36 +37,3 @@ spec:
       - CreateNamespace=true
       - ServerSideApply=true
       - SkipDryRunOnMissingResource=true
-
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: monitoring-ingress
-  namespace: ${MONITORING_NAMESPACE}
-spec:
-  rules:
-  - host: monitoring.yourdomain.com
-    http:
-      paths:
-      - path: /grafana
-        pathType: Prefix
-        backend:
-          service:
-            name: kube-prometheus-stack-grafana
-            port:
-              number: 80
-      - path: /prometheus
-        pathType: Prefix
-        backend:
-          service:
-            name: kube-prometheus-stack-prometheus
-            port:
-              number: 9090
-      - path: /alertmanager
-        pathType: Prefix
-        backend:
-          service:
-            name: kube-prometheus-stack-alertmanager
-            port:
-              number: 9093
