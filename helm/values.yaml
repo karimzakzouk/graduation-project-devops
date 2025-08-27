@@ -3,7 +3,6 @@ replicaCount: 1
 image:
   repository: docker.io/karimzakzouk/graduation-project-devops
   pullPolicy: IfNotPresent
-
   tag: 5ce971613930bb3845550750c0b11cfc28a7d33d
 
 service:
@@ -12,6 +11,14 @@ service:
   targetPort: 3000
 
 namespace: ""
+
+securityContext:
+  enabled: true
+  runAsUser: 1000
+  runAsGroup: 3000
+  fsGroup: 2000
+  allowPrivilegeEscalation: false
+
 
 resources:
   requests:
