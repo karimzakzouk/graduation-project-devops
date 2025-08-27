@@ -3,4 +3,5 @@ flask-cors==4.0.0
 pymongo==4.5.0
 prometheus-client==0.17.1
 pytest==7.4.2
+pytest-cov==4.0.0
 requests==2.31.0
