@@ -48,19 +48,19 @@ jobs:
       - name: Print Service Endpoints
         run: |
           echo "================= SERVICE ENDPOINTS ================="
-          
-          # Get ArgoCD and App LoadBalancer services
+
+          # ArgoCD and App LoadBalancer services
           ARGOCD_HOST=$(kubectl get svc argocd-server -n ${{ inputs.argocd_namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')
           APP_HOST=$(kubectl get svc ${{ inputs.app_name }}-svc -n ${{ inputs.app_namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')
-          
-          # Get monitoring ingress information
+
+          # Monitoring ingress information
           MONITORING_DOMAIN=$(kubectl get ingress -n ${{ inputs.monitoring_namespace }} -o jsonpath='{.items[0].spec.rules[0].host}' 2>/dev/null || echo 'Not found')
-          INGRESS_IP=$(kubectl get ingress -n ${{ inputs.monitoring_namespace }} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}' 2>/dev/null)
-          INGRESS_HOSTNAME=$(kubectl get ingress -n ${{ inputs.monitoring_namespace }} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
-          
-          # Get NGINX ingress controller LoadBalancer
+          INGRESS_IP=$(kubectl get ingress -n ${{ inputs.monitoring_namespace }} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo '')
+          INGRESS_HOSTNAME=$(kubectl get ingress -n ${{ inputs.monitoring_namespace }} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo '')
+
+          # NGINX ingress controller LoadBalancer
           NGINX_LB=$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')
-          
+
           # Print endpoints
           echo "🚀 ArgoCD: http://$ARGOCD_HOST"
           echo "🌟 App: http://$APP_HOST"
@@ -69,22 +69,19 @@ jobs:
           if [ "$MONITORING_DOMAIN" != "Not found" ]; then
             echo "   Domain: $MONITORING_DOMAIN"
             echo "   📊 Prometheus: http://$MONITORING_DOMAIN/prometheus"
-            echo "   📈 Grafana: http://$MONITORING_DOMAIN/grafana" 
+            echo "   📈 Grafana: http://$MONITORING_DOMAIN/grafana"
             echo "   🚨 Alertmanager: http://$MONITORING_DOMAIN/alertmanager"
             echo ""
             echo "   Ingress Status:"
-            if [ ! -z "$INGRESS_IP" ]; then
-              echo "   IP: $INGRESS_IP"
-            fi
-            if [ ! -z "$INGRESS_HOSTNAME" ]; then
-              echo "   LoadBalancer: $INGRESS_HOSTNAME"
-            fi
+            [ ! -z "$INGRESS_IP" ] && echo "   IP: $INGRESS_IP"
+            [ ! -z "$INGRESS_HOSTNAME" ] && echo "   LoadBalancer: $INGRESS_HOSTNAME"
           else
             echo "   ⚠️  Ingress not found or not ready"
           fi
+
           echo ""
           echo "🌐 NGINX Ingress Controller: $NGINX_LB"
-          
+
           echo ""
           echo "================= DETAILED INGRESS STATUS ================="
           echo "All Ingress Resources:"
@@ -92,20 +89,20 @@ jobs:
           echo ""
           echo "Monitoring Namespace Ingress Details:"
           kubectl describe ingress -n ${{ inputs.monitoring_namespace }} 2>/dev/null || echo "No ingress in monitoring namespace"
-          
+
           echo ""
           echo "================= SERVICE STATUS ================="
           echo "Monitoring Services (should be ClusterIP):"
-          kubectl get svc -n ${{ inputs.monitoring_namespace }} -l app.kubernetes.io/instance=kube-prometheus-stack
-          
+          kubectl get svc -n ${{ inputs.monitoring_namespace }} -l app.kubernetes.io/instance=kube-prometheus-stack 2>/dev/null || echo "No monitoring services found"
+
           echo ""
           echo "All LoadBalancer Services:"
-          kubectl get svc -A --field-selector spec.type=LoadBalancer -o wide
-          
+          kubectl get svc -A --field-selector spec.type=LoadBalancer -o wide 2>/dev/null || echo "No LoadBalancer services found"
+
           echo ""
           echo "NGINX Ingress Controller Status:"
           kubectl get svc -n ingress-nginx -o wide 2>/dev/null || echo "NGINX Ingress Controller not found"
-          
+
           echo ""
           echo "================= DEFAULT CREDENTIALS ================="
           ARGOCD_PASS=$(kubectl -n ${{ inputs.argocd_namespace }} get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || echo 'Not found')
@@ -114,12 +111,12 @@ jobs:
           echo "Grafana -> Username: admin"
           echo "Grafana -> Password: ${{ secrets.GRAFANA_PASSWORD }}"
           echo "Prometheus -> No login needed (anonymous access by default)"
-          
+
           echo ""
           echo "================= TROUBLESHOOTING TIPS ================="
           LB_COUNT=$(kubectl get svc -A --field-selector spec.type=LoadBalancer --no-headers 2>/dev/null | wc -l)
           INGRESS_COUNT=$(kubectl get ingress -A --no-headers 2>/dev/null | wc -l)
-          
+
           echo "📊 Current LoadBalancers: $LB_COUNT"
           echo "📊 Current Ingress Resources: $INGRESS_COUNT"
           echo ""
@@ -137,3 +134,4 @@ jobs:
             COST=$((EXCESS * 16))
             echo "   • Potential monthly savings: ~\$COST (reducing $EXCESS extra LoadBalancers)"
           fi
+        shell: /usr/bin/bash
