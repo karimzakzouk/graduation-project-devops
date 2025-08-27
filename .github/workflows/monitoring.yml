@@ -75,6 +75,7 @@ jobs:
         id: nginx-lb
         run: |
           NGINX_HOSTNAME=$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          echo "NGINX LoadBalancer Hostname: $NGINX_HOSTNAME"
           echo "nginx_hostname=$NGINX_HOSTNAME" >> $GITHUB_OUTPUT
           
       - name: Create Grafana Secret
