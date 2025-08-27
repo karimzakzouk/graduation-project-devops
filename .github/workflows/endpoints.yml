@@ -51,8 +51,7 @@ jobs:
           
           # Get ArgoCD endpoint (still using LoadBalancer)
           ARGOCD_HOST=$(kubectl get svc argocd-server -n ${{ inputs.argocd_namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')
-          
-          # Get monitoring ingress endpoint (single endpoint for all monitoring services)
+
           MONITORING_HOST=$(kubectl get ingress monitoring-ingress -n ${{ inputs.monitoring_namespace }} -o jsonpath='{.spec.rules[0].host}' 2>/dev/null || echo 'Not found')
           
           # Alternative: get ingress from kube-prometheus-stack if using helm ingress
