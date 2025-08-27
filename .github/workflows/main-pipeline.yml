@@ -67,12 +67,10 @@ jobs:
         with:
           filters: |
             app:
-              - 'app-controllers/**'
-              - 'app-test.py'
+              - 'app_test.py'
               - 'app.py' 
               - 'index.html'
               - 'Dockerfile'
-              - 'package*.json'
               - 'images/**'
               - '.github/workflows/ci.yml'
               - '.github/workflows/docker.yml'
