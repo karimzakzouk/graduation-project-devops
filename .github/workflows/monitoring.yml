@@ -91,5 +91,5 @@ jobs:
           export MONITORING_NAMESPACE=${{ inputs.monitoring_namespace }}
           export ARGOCD_NAMESPACE=${{ inputs.argocd_namespace }}
           envsubst < ./argocd/monitoring.yml | \
-          sed "s/monitoring\.yourdomain\.com/${{ steps.nginx-lb.outputs.nginx_hostname }}/g" | \
-          kubectl apply -f -
+            sed "s/monitoring\.yourdomain\.com/${{ steps.nginx-lb.outputs.nginx_hostname }}/g" | \
+            kubectl apply -f -

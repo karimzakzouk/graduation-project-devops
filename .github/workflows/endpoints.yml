@@ -46,6 +46,7 @@ jobs:
           aws eks update-kubeconfig --name ${{ inputs.cluster_name }} --region us-east-1
 
       - name: Print Service Endpoints
+        shell: bash
         run: |
           echo "================= SERVICE ENDPOINTS ================="
 
@@ -132,6 +133,5 @@ jobs:
           if [ "$LB_COUNT" -gt 2 ]; then
             EXCESS=$((LB_COUNT - 2))
             COST=$((EXCESS * 16))
-            echo "   • Potential monthly savings: ~\$COST (reducing $EXCESS extra LoadBalancers)"
+            echo "   • Potential monthly savings: ~\$$COST (reducing $EXCESS extra LoadBalancers)"
           fi
-        shell: /usr/bin/bash

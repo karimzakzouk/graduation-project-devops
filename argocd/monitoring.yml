@@ -13,12 +13,21 @@ spec:
       skipCrds: false
       values: |
         crds:
-          enabled: true # Enable CRD installation
+          enabled: true
         
-        # Change all services to ClusterIP instead of LoadBalancer
         prometheus:
           service:
             type: ClusterIP
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            annotations:
+              nginx.ingress.kubernetes.io/rewrite-target: /
+            hosts:
+              - host: monitoring.yourdomain.com
+                paths:
+                  - path: /prometheus
+                    pathType: Prefix
         
         grafana:
           service:
@@ -26,48 +35,30 @@ spec:
           admin:
             existingSecret: grafana-admin-secret
             passwordKey: admin-password
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            annotations:
+              nginx.ingress.kubernetes.io/rewrite-target: /
+            hosts:
+              - host: monitoring.yourdomain.com
+                paths:
+                  - path: /grafana
+                    pathType: Prefix
         
         alertmanager:
           service:
             type: ClusterIP
-        
-        # Enable ingress for all services
-        ingress:
-          enabled: true
-          ingressClassName: nginx  # or your ingress class
-          annotations:
-            nginx.ingress.kubernetes.io/rewrite-target: /
-            # Add SSL redirect if you have cert-manager
-            # cert-manager.io/cluster-issuer: "letsencrypt-prod"
-          hosts:
-            - host: monitoring.yourdomain.com  # Replace with your domain
-              paths:
-                - path: /prometheus
-                  pathType: Prefix
-                  backend:
-                    service:
-                      name: kube-prometheus-stack-prometheus
-                      port:
-                        number: 9090
-                - path: /grafana
-                  pathType: Prefix  
-                  backend:
-                    service:
-                      name: kube-prometheus-stack-grafana
-                      port:
-                        number: 80
-                - path: /alertmanager
-                  pathType: Prefix
-                  backend:
-                    service:
-                      name: kube-prometheus-stack-alertmanager
-                      port:
-                        number: 9093
-          # Uncomment if using TLS
-          # tls:
-          #   - secretName: monitoring-tls
-          #     hosts:
-          #       - monitoring.yourdomain.com
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            annotations:
+              nginx.ingress.kubernetes.io/rewrite-target: /
+            hosts:
+              - host: monitoring.yourdomain.com
+                paths:
+                  - path: /alertmanager
+                    pathType: Prefix
 
   destination:
     server: https://kubernetes.default.svc
