@@ -12,10 +12,22 @@ spec:
       labels:
         app: {{ .Release.Name }}
     spec:
+      {{- if .Values.securityContext.enabled }}
+      # Pod-level security settings
+      securityContext:
+        runAsUser: {{ .Values.securityContext.runAsUser }}
+        runAsGroup: {{ .Values.securityContext.runAsGroup }}
+        fsGroup: {{ .Values.securityContext.fsGroup }}
+      {{- end }}
       containers:
         - name: {{ .Release.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.securityContext.enabled }}
+          # Container-level security settings
+          securityContext:
+            allowPrivilegeEscalation: {{ .Values.securityContext.allowPrivilegeEscalation }}
+          {{- end }}
           ports:
             - containerPort: {{ .Values.service.targetPort }}
           env:
