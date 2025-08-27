@@ -112,26 +112,3 @@ jobs:
           echo "Grafana -> Username: admin"
           echo "Grafana -> Password: ${{ secrets.GRAFANA_PASSWORD }}"
           echo "Prometheus -> No login needed (anonymous access by default)"
-
-          echo ""
-          echo "================= TROUBLESHOOTING TIPS ================="
-          LB_COUNT=$(kubectl get svc -A --field-selector spec.type=LoadBalancer --no-headers 2>/dev/null | wc -l)
-          INGRESS_COUNT=$(kubectl get ingress -A --no-headers 2>/dev/null | wc -l)
-
-          echo "📊 Current LoadBalancers: $LB_COUNT"
-          echo "📊 Current Ingress Resources: $INGRESS_COUNT"
-          echo ""
-          echo "🔍 If monitoring services aren't accessible:"
-          echo "   1. Check if NGINX Ingress Controller is installed"
-          echo "   2. Verify domain 'monitoring.yourdomain.com' points to NGINX LB"
-          echo "   3. Check ingress resource was created successfully"
-          echo "   4. Ensure kube-prometheus-stack synced without errors in ArgoCD"
-          echo ""
-          echo "💰 Cost Impact:"
-          echo "   • Target: 2 LoadBalancers (ArgoCD + NGINX Ingress)"
-          echo "   • Current: $LB_COUNT LoadBalancers"
-          if [ "$LB_COUNT" -gt 2 ]; then
-            EXCESS=$((LB_COUNT - 2))
-            COST=$((EXCESS * 16))
-            echo "   • Potential monthly savings: ~\$$COST (reducing $EXCESS extra LoadBalancers)"
-          fi
