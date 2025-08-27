@@ -6,12 +6,15 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/KarimZakzouk/Graduation-Project-Devops'
+    repoURL: "https://github.com/KarimZakzouk/Graduation-Project-Devops"
     targetRevision: main
     path: helm
     helm:
       valueFiles:
         - values.yaml
+      parameters:
+        - name: namespace
+          value: ${APP_NAMESPACE}
   destination:
     server: https://kubernetes.default.svc
     namespace: ${APP_NAMESPACE}

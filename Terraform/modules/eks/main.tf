@@ -1,11 +1,11 @@
 resource "aws_eks_cluster" "main" {
-  name          = var.cluster_name
-  version       = var.cluster_version
-  role_arn      = aws_iam_role.cluster.arn
+  name     = var.cluster_name
+  version  = var.cluster_version
+  role_arn = aws_iam_role.cluster.arn
 
   access_config {
-    authentication_mode                           = "API_AND_CONFIG_MAP"
-    bootstrap_cluster_creator_admin_permissions   = true
+    authentication_mode                         = "API_AND_CONFIG_MAP"
+    bootstrap_cluster_creator_admin_permissions = true
   }
 
   vpc_config {
@@ -72,11 +72,11 @@ resource "aws_iam_role_policy_attachment" "node_policy" {
 
 
 resource "aws_eks_node_group" "main" {
-  for_each          = var.node_groups
-  cluster_name      = aws_eks_cluster.main.name
-  node_group_name   = each.key
-  node_role_arn     = aws_iam_role.node.arn
-  subnet_ids        = var.subnet_ids
+  for_each        = var.node_groups
+  cluster_name    = aws_eks_cluster.main.name
+  node_group_name = each.key
+  node_role_arn   = aws_iam_role.node.arn
+  subnet_ids      = var.subnet_ids
 
   scaling_config {
     desired_size = each.value.scaling_config.desired_size
@@ -92,4 +92,3 @@ resource "aws_eks_node_group" "main" {
     aws_iam_role_policy_attachment.node_policy
   ]
 }
-
