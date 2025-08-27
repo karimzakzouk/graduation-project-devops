@@ -3,7 +3,6 @@ replicaCount: 1
 image:
   repository: docker.io/karimzakzouk/graduation-project-devops
   pullPolicy: IfNotPresent
-
   tag: 5ce971613930bb3845550750c0b11cfc28a7d33d
 
 service:
@@ -11,4 +10,27 @@ service:
   port: 80
   targetPort: 3000
 
-namespace: "" 
+namespace: ""
+
+securityContext:
+  enabled: true
+  runAsUser: 1000
+  runAsGroup: 3000
+  fsGroup: 2000
+  allowPrivilegeEscalation: false
+
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
