@@ -1,8 +1,8 @@
 # 🌌 Solar System - Enterprise DevOps Application
 
-A comprehensive Node.js web application demonstrating enterprise-grade DevOps practices with complete CI/CD pipeline, Infrastructure as Code, GitOps implementation, and comprehensive monitoring.
+A comprehensive Python web application demonstrating enterprise-grade DevOps practices with a complete CI/CD pipeline, Infrastructure as Code, GitOps implementation, and comprehensive monitoring.
 
-[![Node.js CI](https://github.com/KarimZakzouk/Graduation-Project-Devops/actions/workflows/ci.yml/badge.svg)](https://github.com/KarimZakzouk/Graduation-Project-Devops/actions/workflows/ci.yml)
+[![Python CI](https://github.com/KarimZakzouk/Graduation-Project-Devops/actions/workflows/ci.yml/badge.svg)](https://github.com/KarimZakzouk/Graduation-Project-Devops/actions/workflows/ci.yml)
 [![Docker Build](https://github.com/KarimZakzouk/Graduation-Project-Devops/actions/workflows/docker.yml/badge.svg)](https://github.com/KarimZakzouk/Graduation-Project-Devops/actions/workflows/docker.yml)
 [![Terraform](https://github.com/KarimZakzouk/Graduation-Project-Devops/actions/workflows/terraform.yml/badge.svg)](https://github.com/KarimZakzouk/Graduation-Project-Devops/actions/workflows/terraform.yml)
 
@@ -13,7 +13,7 @@ A comprehensive Node.js web application demonstrating enterprise-grade DevOps pr
 This project showcases a **Solar System visualization web application** built with modern DevOps practices, featuring:
 
 - **Interactive Solar System UI** with planet data and animations
-- **Node.js/Express backend** with MongoDB integration
+- **Python backend** with MongoDB integration
 - **Complete CI/CD pipeline** with GitHub Actions
 - **Infrastructure as Code** using Terraform and AWS EKS
 - **GitOps deployment** with ArgoCD for automated application delivery
@@ -51,9 +51,9 @@ This project showcases a **Solar System visualization web application** built wi
 
 ### **Application Stack**
 - **Frontend**: HTML5, CSS3, JavaScript (Interactive Solar System UI)
-- **Backend**: Node.js, Express.js
+- **Backend**: Python
 - **Database**: MongoDB with Mongoose ODM
-- **Testing**: Mocha, Chai, NYC (Code Coverage)
+- **Testing**: pytest, NYC (Code Coverage)
 
 ### **DevOps & Infrastructure**
 - **Containerization**: Docker, Multi-stage builds
@@ -74,11 +74,9 @@ This project showcases a **Solar System visualization web application** built wi
 
 ```
 ├── 📱 Application Code
-│   ├── app.js                 # Main Node.js application
-│   ├── app-controller.js      # Route controllers
-│   ├── app-test.js           # Test suites
+│   ├── app.py                 # Main Python application
+│   ├── app-test.py           # Test suites
 │   ├── index.html            # Frontend UI
-│   ├── package.json          # Dependencies & scripts
 │   └── Dockerfile            # Container definition
 │
 ├── ☸️ Kubernetes & Helm
@@ -120,7 +118,7 @@ This project showcases a **Solar System visualization web application** built wi
 │       └── destroy.yml         # Resource cleanup
 │
 └── 🖼️ Static Assets
-    └── images/                 # Planet images & backgrounds
+    └── static/                 # Planet images & backgrounds
 ```
 
 ---
@@ -128,7 +126,7 @@ This project showcases a **Solar System visualization web application** built wi
 ## 🔄 DevOps Pipeline
 
 ### **1. Continuous Integration (CI)**
-- **Code Quality**: Automated testing with Mocha/Chai
+- **Code Quality**: Automated testing with pytest
 - **Code Coverage**: NYC coverage reports (85% threshold)
 - **Security Scanning**: Container vulnerability checks
 - **Dependency Management**: Automated dependency updates
