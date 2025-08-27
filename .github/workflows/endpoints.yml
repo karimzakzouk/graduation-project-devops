@@ -28,6 +28,7 @@ on:
         required: false
         default: ''
         type: string
+
 jobs:
   print-endpoints:
     name: Print Service Endpoints
@@ -39,26 +40,65 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsInfraRole
           aws-region: us-east-1
-          
+
       - name: Update kubeconfig
         run: |
           aws eks update-kubeconfig --name ${{ inputs.cluster_name }} --region us-east-1
+
       - name: Print Service Endpoints
         run: |
           echo "================= SERVICE ENDPOINTS ================="
+          
+          # Get ArgoCD endpoint (still using LoadBalancer)
           ARGOCD_HOST=$(kubectl get svc argocd-server -n ${{ inputs.argocd_namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')
-          MONITORING_HOST=$(kubectl get ingress monitoring-ingress -n ${{ inputs.monitoring_namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')
+          
+          # Get monitoring ingress endpoint (single endpoint for all monitoring services)
+          MONITORING_HOST=$(kubectl get ingress monitoring-ingress -n ${{ inputs.monitoring_namespace }} -o jsonpath='{.spec.rules[0].host}' 2>/dev/null || echo 'Not found')
+          
+          # Alternative: get ingress from kube-prometheus-stack if using helm ingress
+          if [ "$MONITORING_HOST" = "Not found" ]; then
+            MONITORING_HOST=$(kubectl get ingress -n ${{ inputs.monitoring_namespace }} -l app.kubernetes.io/name=kube-prometheus-stack -o jsonpath='{.items[0].spec.rules[0].host}' 2>/dev/null || echo 'Not found')
+          fi
+          
+          # Get app endpoint
           APP_HOST=$(kubectl get svc ${{ inputs.app_name }}-svc -n ${{ inputs.app_namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')
+          
+          # Print endpoints
           echo "ArgoCD: http://$ARGOCD_HOST"
-          echo "Monitoring (All-in-One): http://$MONITORING_HOST"
-          echo "  ├── Grafana: http://$MONITORING_HOST/grafana"
-          echo "  ├── Prometheus: http://$MONITORING_HOST/prometheus"
-          echo "  └── AlertManager: http://$MONITORING_HOST/alertmanager"
+          
+          if [ "$MONITORING_HOST" != "Not found" ]; then
+            echo "Prometheus: http://$MONITORING_HOST/prometheus"
+            echo "Grafana: http://$MONITORING_HOST/grafana"
+            echo "Alertmanager: http://$MONITORING_HOST/alertmanager"
+          else
+            echo "Monitoring services: Not found (check ingress configuration)"
+          fi
+          
           echo "App: http://$APP_HOST"
+          
+          echo ""
+          echo "================= INGRESS STATUS ================="
+          
+          # Show ingress details for debugging
+          echo "Monitoring Ingress Status:"
+          kubectl get ingress -n ${{ inputs.monitoring_namespace }} -o wide 2>/dev/null || echo "No ingress found in monitoring namespace"
+          
+          echo ""
+          echo "Load Balancer Services:"
+          kubectl get svc -A --field-selector spec.type=LoadBalancer -o wide
+          
+          echo ""
           echo "================= DEFAULT CREDENTIALS ================="
+          
           ARGOCD_PASS=$(kubectl -n ${{ inputs.argocd_namespace }} get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || echo 'Not found')
           echo "ArgoCD -> Username: admin"
           echo "ArgoCD -> Password: $ARGOCD_PASS"
           echo "Grafana -> Username: admin"
           echo "Grafana -> Password: ${{ secrets.GRAFANA_PASSWORD }}"
           echo "Prometheus -> No login needed (anonymous access by default)"
+          
+          echo ""
+          echo "================= CONFIGURATION NOTES ================="
+          echo "• Monitoring services are accessed through a single ingress endpoint"
+          echo "• Make sure your DNS points to the ingress controller's LoadBalancer"
+          echo "• If monitoring host shows 'Not found', check ingress controller deployment"
