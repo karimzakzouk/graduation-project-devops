@@ -28,7 +28,6 @@ on:
         required: false
         default: ''
         type: string
-
 jobs:
   print-endpoints:
     name: Print Service Endpoints
@@ -44,17 +43,17 @@ jobs:
       - name: Update kubeconfig
         run: |
           aws eks update-kubeconfig --name ${{ inputs.cluster_name }} --region us-east-1
-
       - name: Print Service Endpoints
         run: |
           echo "================= SERVICE ENDPOINTS ================="
           ARGOCD_HOST=$(kubectl get svc argocd-server -n ${{ inputs.argocd_namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')
-          PROM_HOST=$(kubectl get svc kube-prometheus-stack-prometheus -n ${{ inputs.monitoring_namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')
-          GRAFANA_HOST=$(kubectl get svc kube-prometheus-stack-grafana -n ${{ inputs.monitoring_namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')
+          MONITORING_HOST=$(kubectl get ingress monitoring-ingress -n ${{ inputs.monitoring_namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')
           APP_HOST=$(kubectl get svc ${{ inputs.app_name }}-svc -n ${{ inputs.app_namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')
           echo "ArgoCD: http://$ARGOCD_HOST"
-          echo "Prometheus: http://$PROM_HOST:9090"
-          echo "Grafana: http://$GRAFANA_HOST"
+          echo "Monitoring (All-in-One): http://$MONITORING_HOST"
+          echo "  ├── Grafana: http://$MONITORING_HOST/grafana"
+          echo "  ├── Prometheus: http://$MONITORING_HOST/prometheus"
+          echo "  └── AlertManager: http://$MONITORING_HOST/alertmanager"
           echo "App: http://$APP_HOST"
           echo "================= DEFAULT CREDENTIALS ================="
           ARGOCD_PASS=$(kubectl -n ${{ inputs.argocd_namespace }} get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || echo 'Not found')
