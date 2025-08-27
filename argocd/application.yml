@@ -9,7 +9,7 @@ spec:
     repoURL: 'https://github.com/karimzakzouk/helm'
 
     targetRevision: main
-    path: helm
+    path: .
     helm:
       valueFiles:
         - values.yaml
