@@ -22,7 +22,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         exclude:
           - os: windows-latest
-            node-version: 3.9
+            python-version: 3.9
     runs-on: ${{ matrix.os }}
 
     steps:
