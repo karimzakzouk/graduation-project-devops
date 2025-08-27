@@ -68,8 +68,8 @@ jobs:
           filters: |
             app:
               - 'app-controllers/**'
-              - 'app-test.js'
-              - 'app.js' 
+              - 'app-test.py'
+              - 'app.py' 
               - 'index.html'
               - 'Dockerfile'
               - 'package*.json'
