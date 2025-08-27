@@ -23,7 +23,7 @@
       <link rel="icon" type="image/x-icon" href="https://gitlab.com/sidd-harth/solar-system/-/raw/main/images/saturn.png">
       <style> 
          #planetImage { 
-            background: url('https://gitlab.com/sidd-harth/solar-system/-/raw/main/images/solar-system.png')   center center; 
+            background: url('https://gitlab.com/sidd-harth/solar-system/-/raw/main/images/solar-system.png') center center; 
             background-repeat: no-repeat;			   
             background-size: cover; 
             content: ''; 
@@ -39,15 +39,82 @@
             display: flex; 
             align-items: center; 
             justify-content: center; 
-            background: url('images/background.gif'); 
+            background: url('static/background.gif'); 
          } 
-         /*.shadow { 
-         animation: rainbow 2s linear infinite; 
-         } */ 
       </style>
+      <script>
+         console.log('We are inside client.js');
+         
+         window.onload = function() {
+            const planet_id = document.getElementById("planetID").value
+            console.log("onLoad - Request Planet ID - " + planet_id)
+            fetch("/os", {
+               method: "GET"
+            })
+            .then(function(res) {
+               if (res.ok) {
+                  return res.json();
+               }
+               throw new Error('Request failed');
+            }).catch(function(error) {
+               console.log(error);
+            })
+            .then(function(data) {
+               document.getElementById('hostname').innerHTML = `Pod - ${data.os} `
+            });
+
+            // Move the event listener inside window.onload
+            const btn = document.getElementById('submit');
+            if (btn) {
+               btn.addEventListener('click', func);
+               console.log("Event listener added to submit button");
+            } else {
+               console.log("Submit button not found!");
+            }
+         };
+
+
+         function func() {
+            const planet_id = document.getElementById("planetID").value
+            console.log("onClick Submit - Request Planet ID - " + planet_id)
+            
+            if (!planet_id) {
+               alert("Please enter a planet ID");
+               return;
+            }
+            
+            fetch("/planet", {
+               method: "POST",
+               body: JSON.stringify({
+                  id: parseInt(document.getElementById("planetID").value)
+               }),
+               headers: {
+                  "Content-type": "application/json; charset=UTF-8"
+               }
+            })
+            .then(function(res2) {
+               if (res2.ok) {
+                  return res2.json();
+               }
+               throw new Error('Request failed.');
+            }).catch(function(error) {
+               alert("Ooops, We have 8 planets.\nSelect a number from 0 - 8")
+               console.log(error);
+            })
+            .then(function(data) {
+               if (data) {
+                  document.getElementById('planetName').innerHTML = ` ${data.name} `
+                  const element = document.getElementById("planetImage");
+                  const image = ` ${data.image} `
+                  element.style.backgroundImage = "url("+image+")"
+                  const planet_description = ` ${data.description} `
+                  document.getElementById('planetDescription').innerHTML = planet_description.replace(/(.{80})/g, "$1<br>");
+               }
+            });
+         }
+      </script>
    </head>
    <body>
-
       <div>
         <div>
          <a href="index.html">
@@ -65,10 +132,9 @@
                    line-height: initial;
                    border-width: 1px 1px 3px"> SOLAR <i class="fa fa-rocket"></i> SYSTEM  </button> 
             </a>
-           
         </div>
         <br>
-         <input type="submit"  id="submit" value="Search the Planet" 
+         <input type="submit" id="submit" value="Search the Planet" 
          style="float: right;
              background-color:rgb(187, 75, 243);
              color:white;
@@ -91,17 +157,14 @@
             <h1 style="color:rgb(247, 145, 95); font-family: 'Encode Sans';" id="planetName"> Solar System v6 </h1>
          </div>
          <div class="bottomleft">
-            <p  style="color:rgb(224, 224, 224); font-family: 'Ubuntu';" id="planetDescription"> Solar system consists of our star, the Sun, and everything bound to it by gravity – <br> the planets Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune; <br> dwarf planets such as Pluto; dozens of moons; and millions <br> of asteroids, comets, and meteoroids.</p>
+            <p style="color:rgb(224, 224, 224); font-family: 'Ubuntu';" id="planetDescription"> Solar system consists of our star, the Sun, and everything bound to it by gravity – <br> the planets Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune; <br> dwarf planets such as Pluto; dozens of moons; and millions <br> of asteroids, comets, and meteoroids.</p>
          </div>
          <br>
          <div class="middle">
-            <h2 style="color:rgb(93, 150, 237); font-family: 'BioRhyme';"  id="hostname">Solar System Pod Name</h2>
-
-            <!-- <h3 style="color:rgb(111, 255, 171); font-family: 'Encode Sans';" id="environment">ENVIRONMENT: " placeholder "</h3> -->
+            <h2 style="color:rgb(93, 150, 237); font-family: 'BioRhyme';" id="hostname">Solar System Pod Name</h2>
          </div>
       </div>
-      <div  id="planetImage">  
+      <div id="planetImage">  
       </div>
-      <script type="text/javascript"  src="app-controller.js" charset="utf-8"></script>
    </body>
 </html>

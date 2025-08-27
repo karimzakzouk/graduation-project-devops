@@ -6,7 +6,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: "https://github.com/KarimZakzouk/Graduation-Project-Devops"
+    repoURL: 'https://github.com/karimzakzouk/helm'
+
     targetRevision: main
     path: helm
     helm:
