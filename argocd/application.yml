@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/karimzakzouk/helm'
+    repoURL: "https://github.com/karimzakzouk/helm"
 
     targetRevision: main
     path: .
@@ -23,6 +23,10 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
 
   ignoreDifferences:
     - group: ""
