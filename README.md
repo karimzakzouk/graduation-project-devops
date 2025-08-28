@@ -23,27 +23,17 @@ This project showcases a **Solar System visualization web application** built wi
 
 ---
 
-## 🏗️ Architecture Overview
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   GitHub Repo   │───▶│  GitHub Actions │───▶│   Docker Hub    │
-│                 │    │     CI/CD       │    │      GHCR       │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                │
-                                ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Terraform     │───▶│   AWS EKS       │───▶│     ArgoCD      │
-│  Infrastructure │    │   Kubernetes    │    │  GitOps Deploy  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                │
-                                ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Prometheus    │───▶│  Solar System   │───▶│   LoadBalancer  │
-│   + Grafana     │    │   Application   │    │   Public Access │
-│   Monitoring    │    │   + MongoDB     │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
+## 🏗️ Project Architecture Diagram
+
+You can watch the architecture diagram video below for a visual overview of the system design:
+
+<p align="center">
+  <video width="600" controls>
+    <source src="assets/Diagram.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</p>
 
 ---
 
@@ -67,6 +57,20 @@ This project showcases a **Solar System visualization web application** built wi
   - **Prometheus**: Metrics collection and alerting
   - **Grafana**: Visualization dashboards and analytics
   - Built-in health checks and structured logging
+
+---
+
+
+## 🎥 Project Architecture Diagram
+
+You can watch the architecture diagram video below for a visual overview of the system design:
+
+<p align="center">
+  <video width="600" controls>
+    <source src="assets/Diagram.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+</p>
 
 ---
 
