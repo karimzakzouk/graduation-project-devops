@@ -79,3 +79,34 @@ jobs:
           name: Coverage-Report
           path: coverage/
           retention-days: 1
+  sonarqube:
+    name: SonarQube
+    needs: code-coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+      
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest-cov
+      
+      - name: Run Code Coverage
+        id: coverage
+        continue-on-error: true
+        run: pytest --cov=. --cov-report=html --cov-report=xml
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        with:
+          args: >
+            -Dsonar.python.coverage.reportPaths=coverage.xml
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
