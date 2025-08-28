@@ -15,6 +15,11 @@ resource "aws_eks_cluster" "main" {
   depends_on = [
     aws_iam_role_policy_attachment.cluster_policy
   ]
+
+  tags = {
+    "karpenter.sh/discovery" = var.cluster_name
+    "Name"                   = var.cluster_name
+  }
 }
 
 resource "aws_iam_role" "cluster" {

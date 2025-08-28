@@ -16,6 +16,8 @@ module "eks" {
   vpc_id          = module.vpc.vpc_id
   subnet_ids      = module.vpc.private_subnet_ids
   node_groups     = var.node_groups
+
+
 }
 
 # EKS Addon: metrics-server (enables HPA CPU/memory metrics)

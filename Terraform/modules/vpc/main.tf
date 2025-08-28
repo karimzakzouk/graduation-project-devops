@@ -19,6 +19,7 @@ resource "aws_subnet" "private" {
     Name                                                =   "${var.cluster_name}-private-${count.index + 1}"
     "kubernetes.io/cluster/${var.cluster_name}"         =   "shared"
     "kubernetes.io/role/internal-elb"                   =   "1"
+    "karpenter.sh/discovery" = var.cluster_name
   }
 }
 
@@ -33,6 +34,7 @@ resource "aws_subnet" "public" {
     Name                                                =   "${var.cluster_name}-public-${count.index + 1}"
     "kubernetes.io/cluster/${var.cluster_name}"         =   "owned"
     "kubernetes.io/role/elb"                            =   "1"
+    "karpenter.sh/discovery" = var.cluster_name
   }
 }
 
