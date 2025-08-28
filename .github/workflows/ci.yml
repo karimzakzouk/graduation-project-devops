@@ -5,7 +5,7 @@ on:
     outputs:
       test-result:
         description: "Test execution result"
-        value: ${{ jobs.testing-and-coverage.outputs.result }}
+        value: ${{ jobs.coverage-and-sonar.outputs.result }}
 
 env:
   MONGO_URI: ${{ secrets.MONGO_URI }}
@@ -13,8 +13,8 @@ env:
   MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
 
 jobs:
-  testing-and-coverage:
-    name: Testing and Code Coverage
+  unit-testing:
+    name: Unit Testing
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
@@ -23,13 +23,9 @@ jobs:
           - os: windows-latest
             python-version: "3.10"
     runs-on: ${{ matrix.os }}
-    outputs:
-      result: ${{ steps.coverage.outcome }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
-        with:
-          fetch-depth: 0  # Needed for SonarQube
 
       - name: Setup Python Version - ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -37,18 +33,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install Dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install pytest-cov
+        run: pip install -r requirements.txt
 
       - name: Unit Testing
         id: unit-tests
         run: pytest --junitxml=test-results.xml
-
-      - name: Run Code Coverage
-        id: coverage
-        continue-on-error: true
-        run: pytest --cov=. --cov-report=xml --cov-report=html
 
       - name: Archive Test Results
         if: always()
@@ -58,18 +47,44 @@ jobs:
           path: test-results.xml
           retention-days: 1
 
+  coverage-and-sonar:
+    name: Code Coverage and SonarQube
+    needs: unit-testing
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.coverage.outcome }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # Needed for SonarQube
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest-cov
+
+      - name: Run Code Coverage
+        id: coverage
+        continue-on-error: true
+        run: pytest --cov=. --cov-report=xml --cov-report=html
+
       - name: Archive Coverage Report
-        if: always() && matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Coverage-Report-${{ matrix.os }}-${{ matrix.python-version }}
+          name: Coverage-Report
           path: |
             coverage.xml
             htmlcov/
           retention-days: 1
 
       - name: SonarQube Scan
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         uses: SonarSource/sonarqube-scan-action@v5
         with:
           args: >
