@@ -36,6 +36,18 @@ on:
       karpenter_namespace:
         description: "Karpenter namespace from Terraform outputs"
         value: ${{ jobs.terraform.outputs.karpenter_namespace }}
+      karpenter_controller_cpu_request:
+        description: "Karpenter controller CPU request from Terraform outputs"
+        value: ${{ jobs.terraform.outputs.karpenter_controller_cpu_request }}
+      karpenter_controller_memory_request:
+        description: "Karpenter controller memory request from Terraform outputs"
+        value: ${{ jobs.terraform.outputs.karpenter_controller_memory_request }}
+      karpenter_controller_cpu_limit:
+        description: "Karpenter controller CPU limit from Terraform outputs"
+        value: ${{ jobs.terraform.outputs.karpenter_controller_cpu_limit }}
+      karpenter_controller_memory_limit:
+        description: "Karpenter controller memory limit from Terraform outputs"
+        value: ${{ jobs.terraform.outputs.karpenter_controller_memory_limit }}
 
 
 
@@ -59,7 +71,12 @@ jobs:
       karpenter_nodepool_name: ${{ steps.terraform-outputs.outputs.karpenter_nodepool_name }}
       karpenter_nodeclass_name: ${{ steps.terraform-outputs.outputs.karpenter_nodeclass_name }}
       karpenter_node_role: ${{ steps.terraform-outputs.outputs.karpenter_node_role }}
-      karpenter_instance_profile: ${{ steps.terraform-outputs.outputs.karpenter_instance_profile }} 
+      karpenter_instance_profile: ${{ steps.terraform-outputs.outputs.karpenter_instance_profile }}
+      karpenter_namespace: ${{ steps.terraform-outputs.outputs.karpenter_namespace }}
+      karpenter_controller_cpu_request: ${{ steps.terraform-outputs.outputs.karpenter_controller_cpu_request }}
+      karpenter_controller_memory_request: ${{ steps.terraform-outputs.outputs.karpenter_controller_memory_request }}
+      karpenter_controller_cpu_limit: ${{ steps.terraform-outputs.outputs.karpenter_controller_cpu_limit }}
+      karpenter_controller_memory_limit: ${{ steps.terraform-outputs.outputs.karpenter_controller_memory_limit }}
     
     steps:
       - name: Checkout Repository
@@ -109,6 +126,11 @@ jobs:
           MONITORING_NAMESPACE=$(terraform output -raw monitoring_namespace)
           ARGOCD_NAMESPACE=$(terraform output -raw argocd_namespace)
           APP_NAME=$(terraform output -raw app_name)
+          KARPENTER_NAMESPACE=$(terraform output -raw karpenter_namespace)
+          KARPENTER_CONTROLLER_CPU_REQUEST=$(terraform output -raw karpenter_controller_cpu_request)
+          KARPENTER_CONTROLLER_MEMORY_REQUEST=$(terraform output -raw karpenter_controller_memory_request)
+          KARPENTER_CONTROLLER_CPU_LIMIT=$(terraform output -raw karpenter_controller_cpu_limit)
+          KARPENTER_CONTROLLER_MEMORY_LIMIT=$(terraform output -raw karpenter_controller_memory_limit)
 
           echo "CLUSTER_NAME=$CLUSTER_NAME" >> $GITHUB_ENV
           echo "APP_NAMESPACE=$APP_NAMESPACE" >> $GITHUB_ENV

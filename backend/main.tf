@@ -150,7 +150,27 @@ resource "aws_iam_role_policy" "github_actions_infra_policy" {
           # Additional permissions for EKS
           "autoscaling:*",
           "logs:*",
-          "application-autoscaling:*"
+          "application-autoscaling:*",
+          
+          # OIDC Provider permissions
+          "iam:CreateOpenIDConnectProvider",
+          "iam:GetOpenIDConnectProvider",
+          "iam:DeleteOpenIDConnectProvider",
+          "iam:ListOpenIDConnectProviders",
+          "iam:TagOpenIDConnectProvider",
+          "iam:UntagOpenIDConnectProvider",
+          "iam:ListOpenIDConnectProviderTags",
+          
+          # SQS permissions
+          "sqs:CreateQueue",
+          "sqs:DeleteQueue",
+          "sqs:GetQueueUrl",
+          "sqs:ListQueues",
+          "sqs:GetQueueAttributes",
+          "sqs:SetQueueAttributes",
+          "sqs:TagQueue",
+          "sqs:UntagQueue",
+          "sqs:ListQueueTags"
         ],
         Resource = "*"
       }
