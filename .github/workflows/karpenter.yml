@@ -76,7 +76,9 @@ jobs:
       - name: Install/Upgrade Karpenter
         run: |
           CLUSTER_ENDPOINT=$(aws eks describe-cluster --name ${{ inputs.cluster_name }} --query 'cluster.endpoint' --output text)
-          helm install karpenter karpenter/karpenter \
+          export CLUSTER_ENDPOINT=$CLUSTER_ENDPOINT
+          echo "Cluster endpoint: $CLUSTER_ENDPOINT"
+          helm upgrade --install karpenter karpenter/karpenter \
             --namespace karpenter \
             --create-namespace \
             --timeout 15m \
