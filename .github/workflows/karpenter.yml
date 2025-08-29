@@ -63,28 +63,6 @@ jobs:
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --name ${{ inputs.cluster_name }} --region us-east-1
 
-      - name: Tag Resources for Karpenter Discovery
-        run: |
-          CLUSTER_NAME=${{ inputs.cluster_name }}
-          
-          # Tag cluster security groups
-          SECURITY_GROUP_IDS=$(aws eks describe-cluster --name $CLUSTER_NAME --query 'cluster.resourcesVpcConfig.securityGroupIds' --output text)
-          for sg_id in $SECURITY_GROUP_IDS; do
-            aws ec2 create-tags --resources $sg_id --tags Key=karpenter.sh/discovery,Value=$CLUSTER_NAME
-          done
-          
-          # Tag additional security groups with cluster name
-          ADDITIONAL_SG_IDS=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=*$CLUSTER_NAME*" --query 'SecurityGroups[*].GroupId' --output text)
-          for sg_id in $ADDITIONAL_SG_IDS; do
-            aws ec2 create-tags --resources $sg_id --tags Key=karpenter.sh/discovery,Value=$CLUSTER_NAME
-          done
-          
-          # Tag subnets
-          SUBNET_IDS=$(aws eks describe-cluster --name $CLUSTER_NAME --query 'cluster.resourcesVpcConfig.subnetIds' --output text)
-          for subnet_id in $SUBNET_IDS; do
-            aws ec2 create-tags --resources $subnet_id --tags Key=karpenter.sh/discovery,Value=$CLUSTER_NAME
-          done
-
       - name: Install Helm
         uses: azure/setup-helm@v4.2.0
         with:
