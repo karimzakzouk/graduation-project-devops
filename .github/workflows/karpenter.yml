@@ -86,7 +86,6 @@ jobs:
             --set controller.resources.requests.memory=${{ inputs.karpenter_controller_memory_request }} \
             --set controller.resources.limits.cpu=${{ inputs.karpenter_controller_cpu_limit }} \
             --set controller.resources.limits.memory=${{ inputs.karpenter_controller_memory_limit }} \
-            --wait
 
       - name: Deploy Karpenter NodePool and EC2NodeClass
         run: |

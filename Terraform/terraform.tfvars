@@ -56,7 +56,7 @@ karpenter_instance_profile  = "KarpenterNodeInstanceProfile"
 karpenter_namespace         = "karpenter"
 
 # Karpenter Controller Resource Configuration
-karpenter_controller_cpu_request    = "1"
-karpenter_controller_memory_request = "1Gi"
+karpenter_controller_cpu_request    = "500m"
+karpenter_controller_memory_request = "512Mi"
 karpenter_controller_cpu_limit      = "1"
 karpenter_controller_memory_limit   = "1Gi"
