@@ -78,15 +78,24 @@ jobs:
           CLUSTER_ENDPOINT=$(aws eks describe-cluster --name ${{ inputs.cluster_name }} --query 'cluster.endpoint' --output text)
           export CLUSTER_ENDPOINT=$CLUSTER_ENDPOINT
           echo "Cluster endpoint: $CLUSTER_ENDPOINT"
+          
+          # Use the working CLI approach with direct environment variables
           helm upgrade --install karpenter karpenter/karpenter \
+            --version "0.16.3" \
             --namespace karpenter \
             --create-namespace \
             --timeout 15m \
-            --set settings.aws.clusterName=${{ inputs.cluster_name }} \
-            --set settings.aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
-            --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/KarpenterControllerRole-${{ inputs.cluster_name }} \
-            --set settings.aws.defaultInstanceProfile=${{ inputs.karpenter_instance_profile }} \
-            --set settings.aws.interruptionQueueName=karpenter-interruption-queue-${{ inputs.cluster_name }} \
+            --set controller.env[0].name="CLUSTER_NAME" \
+            --set controller.env[0].value="${{ inputs.cluster_name }}" \
+            --set controller.env[1].name="CLUSTER_ENDPOINT" \
+            --set controller.env[1].value="${CLUSTER_ENDPOINT}" \
+            --set controller.env[2].name="AWS_DEFAULT_INSTANCE_PROFILE" \
+            --set controller.env[2].value="${{ inputs.karpenter_instance_profile }}" \
+            --set controller.env[3].name="INTERRUPTION_QUEUE" \
+            --set controller.env[3].value="karpenter-interruption-queue-${{ inputs.cluster_name }}" \
+            --set controller.env[4].name="AWS_REGION" \
+            --set controller.env[4].value="us-east-1" \
+            --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/KarpenterControllerRole-${{ inputs.cluster_name }}" \
             --set controller.resources.requests.cpu=${{ inputs.karpenter_controller_cpu_request }} \
             --set controller.resources.requests.memory=${{ inputs.karpenter_controller_memory_request }} \
             --set controller.resources.limits.cpu=${{ inputs.karpenter_controller_cpu_limit }} \
@@ -96,7 +105,7 @@ jobs:
       - name: Wait for Karpenter to be Ready
         run: |
           echo "Waiting for Karpenter controller to be ready..."
-          kubectl wait --for=condition=Ready pod -l app.kubernetes.io/name=karpenter -n ${{ inputs.karpenter_namespace }} --timeout=300s
+          kubectl wait --for=condition=Ready pod -l app.kubernetes.io/name=karpenter -n karpenter --timeout=300s
           
           echo "Verifying CRDs are available..."
           kubectl get crd nodepools.karpenter.sh
@@ -119,12 +128,12 @@ jobs:
       - name: Verify Karpenter Installation
         run: |
           echo "Checking Karpenter controller status..."
-          kubectl get pods -n ${{ inputs.karpenter_namespace }}
+          kubectl get pods -n karpenter
           
           echo "Checking NodePool..."
-          kubectl get nodepool -n ${{ inputs.karpenter_namespace }}
+          kubectl get nodepool -n karpenter
           
           echo "Checking EC2NodeClass..."
-          kubectl get ec2nodeclass -n ${{ inputs.karpenter_namespace }}
+          kubectl get ec2nodeclass -n karpenter
           
           echo "Karpenter installation completed successfully!"
