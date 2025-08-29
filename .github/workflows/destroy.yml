@@ -59,194 +59,423 @@ jobs:
           version: v3.14.0
         continue-on-error: true
 
-      # ---------------------------
-      # Delete ArgoCD Applications with timeout
-      # ---------------------------
+      # ==================================================
+      # PHASE 1: DELETE APPLICATIONS (ArgoCD first)
+      # ==================================================
       - name: Delete ArgoCD Applications
         run: |
+          echo "🔥 Deleting ArgoCD Applications..."
           kubectl delete application ${{ vars.APP_NAME }} -n ${{ vars.ARGOCD_NAMESPACE }} --ignore-not-found --timeout=60s || true
           kubectl delete application kube-prometheus-stack -n ${{ vars.ARGOCD_NAMESPACE }} --ignore-not-found --timeout=60s || true
+          kubectl delete application --all -n ${{ vars.ARGOCD_NAMESPACE }} --ignore-not-found --timeout=60s || true
+          echo "✅ ArgoCD applications cleanup completed"
         continue-on-error: true
 
-      # ---------------------------
-      # Scale down workloads FIRST with timeouts
-      # ---------------------------
-      - name: Scale down all workloads before cleanup
+      # ==================================================
+      # PHASE 2: SCALE DOWN AND DELETE WORKLOADS
+      # ==================================================
+      - name: Scale Down and Delete Workloads
         run: |
-          echo "Scaling down all deployments and deleting services to trigger LB cleanup..."
+          echo "📉 Scaling down all workloads and deleting services..."
           
-          # Scale down ALL deployments across ALL namespaces with timeout
-          kubectl get deployments --all-namespaces -o json | jq -r '.items[] | "\(.metadata.namespace) \(.metadata.name)"' | while read namespace deployment; do
-            echo "Scaling down deployment $deployment in namespace $namespace"
-            kubectl scale deployment $deployment --replicas=0 -n $namespace --timeout=30s || true
+          # Get target namespaces
+          TARGET_NAMESPACES=("${{ vars.APP_NAMESPACE }}" "${{ vars.MONITORING_NAMESPACE }}" "${{ vars.ARGOCD_NAMESPACE }}" "ingress-nginx" "${{ vars.KARPENTER_NAMESPACE }}")
+          
+          # Scale down ALL deployments across target namespaces
+          for ns in "${TARGET_NAMESPACES[@]}"; do
+            if [[ -n "$ns" ]] && kubectl get namespace $ns --ignore-not-found 2>/dev/null; then
+              echo "Scaling down deployments in namespace: $ns"
+              kubectl get deployments -n $ns -o json 2>/dev/null | jq -r '.items[]? | .metadata.name' | while read deployment; do
+                if [[ -n "$deployment" ]]; then
+                  echo "  Scaling down deployment: $deployment"
+                  kubectl scale deployment $deployment --replicas=0 -n $ns --timeout=30s || true
+                fi
+              done
+            fi
           done
           
-          # Scale down daemonsets that might be running
-          kubectl get daemonsets --all-namespaces -o json | jq -r '.items[] | "\(.metadata.namespace) \(.metadata.name)"' | while read namespace daemonset; do
-            echo "Deleting daemonset $daemonset in namespace $namespace"
-            kubectl delete daemonset $daemonset -n $namespace --ignore-not-found --timeout=60s || true
+          # Delete ALL services of type LoadBalancer IMMEDIATELY (to prevent AWS LB hanging)
+          echo "🔌 Deleting LoadBalancer services across all namespaces..."
+          kubectl get services --all-namespaces -o json | jq -r '.items[]? | select(.spec.type=="LoadBalancer") | "\(.metadata.namespace) \(.metadata.name)"' | while read namespace service; do
+            if [[ -n "$namespace" && -n "$service" ]]; then
+              echo "  Deleting LoadBalancer service: $service in $namespace"
+              kubectl delete service $service -n $namespace --ignore-not-found --timeout=60s || true
+            fi
           done
           
-          # Delete ALL services of type LoadBalancer IMMEDIATELY
-          echo "Deleting LoadBalancer services..."
-          kubectl get services --all-namespaces -o json | jq -r '.items[] | select(.spec.type=="LoadBalancer") | "\(.metadata.namespace) \(.metadata.name)"' | while read namespace service; do
-            echo "Deleting service $service in namespace $namespace"
-            kubectl delete service $service -n $namespace --ignore-not-found --timeout=60s || true
+          # Delete daemonsets that might be running
+          echo "🗑️ Deleting daemonsets..."
+          for ns in "${TARGET_NAMESPACES[@]}"; do
+            if [[ -n "$ns" ]] && kubectl get namespace $ns --ignore-not-found 2>/dev/null; then
+              kubectl get daemonsets -n $ns -o json 2>/dev/null | jq -r '.items[]? | .metadata.name' | while read daemonset; do
+                if [[ -n "$daemonset" ]]; then
+                  echo "  Deleting daemonset: $daemonset in $ns"
+                  kubectl delete daemonset $daemonset -n $ns --ignore-not-found --timeout=60s || true
+                fi
+              done
+            fi
           done
           
-          # Wait for LoadBalancers to be cleaned up
-          echo "Waiting for LoadBalancers to be cleaned up..."
+          echo "⏳ Waiting for LoadBalancers to be cleaned up..."
           sleep 60
-      
-      # ---------------------------
-      # Clean up Karpenter Resources with enhanced error handling
-      # ---------------------------
-      - name: Delete Karpenter Provisioners and AWSNodeTemplates
+          echo "✅ Workload scaling and service cleanup completed"
+        continue-on-error: true
+
+      # ==================================================
+      # PHASE 3: CLEAN UP KARPENTER RESOURCES
+      # ==================================================
+      - name: Delete Karpenter Resources
         run: |
-          echo "Deleting Karpenter Provisioners..."
-          kubectl delete provisioner ${{ vars.KARPENTER_NODEPOOL_NAME }} --ignore-not-found -n ${{ vars.KARPENTER_NAMESPACE }} --timeout=60s || true
-          kubectl delete provisioner --all -n ${{ vars.KARPENTER_NAMESPACE }} --ignore-not-found --timeout=60s || true
+          echo "🚗 Cleaning up Karpenter resources..."
           
-          echo "Deleting Karpenter AWSNodeTemplates..."
-          kubectl delete awsnodetemplate ${{ vars.KARPENTER_NODECLASS_NAME }} --ignore-not-found -n ${{ vars.KARPENTER_NAMESPACE }} --timeout=60s || true
-          kubectl delete awsnodetemplate --all -n ${{ vars.KARPENTER_NAMESPACE }} --ignore-not-found --timeout=60s || true
-          
-          echo "Deleting new Karpenter resources (NodePools, EC2NodeClasses)..."
+          # Delete Karpenter custom resources first
+          echo "Deleting Karpenter NodePools and EC2NodeClasses..."
           kubectl delete nodepool --all --ignore-not-found --timeout=60s || true
           kubectl delete ec2nodeclass --all --ignore-not-found --timeout=60s || true
           
-          echo "Waiting for resources to be cleaned up..."
+          # Delete legacy Karpenter resources
+          echo "Deleting legacy Karpenter Provisioners and AWSNodeTemplates..."
+          kubectl delete provisioner ${{ vars.KARPENTER_NODEPOOL_NAME }} --ignore-not-found -n ${{ vars.KARPENTER_NAMESPACE }} --timeout=60s || true
+          kubectl delete provisioner --all -n ${{ vars.KARPENTER_NAMESPACE }} --ignore-not-found --timeout=60s || true
+          kubectl delete awsnodetemplate ${{ vars.KARPENTER_NODECLASS_NAME }} --ignore-not-found -n ${{ vars.KARPENTER_NAMESPACE }} --timeout=60s || true
+          kubectl delete awsnodetemplate --all -n ${{ vars.KARPENTER_NAMESPACE }} --ignore-not-found --timeout=60s || true
+          
+          echo "⏳ Waiting for Karpenter resources to be cleaned up..."
           sleep 30
+          echo "✅ Karpenter resources cleanup completed"
         continue-on-error: true
 
       - name: Uninstall Karpenter Helm Release
         run: |
-          echo "Uninstalling Karpenter Helm release..."
+          echo "📦 Uninstalling Karpenter Helm release..."
           helm uninstall karpenter -n ${{ vars.KARPENTER_NAMESPACE }} --timeout=300s || true
           
-          echo "Waiting for pods to terminate..."
+          echo "⏳ Waiting for Karpenter pods to terminate..."
           kubectl wait --for=delete pod -l app.kubernetes.io/name=karpenter -n ${{ vars.KARPENTER_NAMESPACE }} --timeout=120s || true
           
-          echo "Force deleting any remaining pods..."
+          echo "💥 Force deleting any remaining Karpenter pods..."
           kubectl delete pods --all -n ${{ vars.KARPENTER_NAMESPACE }} --force --grace-period=0 || true
+          echo "✅ Karpenter Helm release uninstalled"
         continue-on-error: true
 
       - name: Clean up Karpenter CRDs and Webhooks
         run: |
+          echo "🧹 Cleaning up Karpenter CRDs and webhooks..."
+          
+          # Delete Karpenter CRDs
           echo "Deleting Karpenter CRDs..."
           kubectl delete crd provisioners.karpenter.sh --ignore-not-found --timeout=60s || true
           kubectl delete crd awsnodetemplates.karpenter.k8s.aws --ignore-not-found --timeout=60s || true
           kubectl delete crd nodepools.karpenter.sh --ignore-not-found --timeout=60s || true
           kubectl delete crd ec2nodeclasses.karpenter.k8s.aws --ignore-not-found --timeout=60s || true
           
+          # Delete Karpenter webhooks
           echo "Deleting Karpenter webhooks..."
           kubectl delete validatingwebhookconfiguration defaulting.webhook.karpenter.sh --ignore-not-found || true
           kubectl delete validatingwebhookconfiguration validation.webhook.karpenter.sh --ignore-not-found || true
           kubectl delete mutatingwebhookconfiguration defaulting.webhook.karpenter.sh --ignore-not-found || true
           
-          echo "Removing finalizers from stuck CRDs..."
+          # Remove finalizers from stuck CRDs
+          echo "Removing finalizers from stuck Karpenter CRDs..."
           kubectl patch crd provisioners.karpenter.sh -p '{"metadata":{"finalizers":[]}}' --type=merge || true
           kubectl patch crd awsnodetemplates.karpenter.k8s.aws -p '{"metadata":{"finalizers":[]}}' --type=merge || true
           kubectl patch crd nodepools.karpenter.sh -p '{"metadata":{"finalizers":[]}}' --type=merge || true
           kubectl patch crd ec2nodeclasses.karpenter.k8s.aws -p '{"metadata":{"finalizers":[]}}' --type=merge || true
+          echo "✅ Karpenter CRDs and webhooks cleanup completed"
         continue-on-error: true
 
-      # ---------------------------
-      # Uninstall Other Helm Releases with timeouts
-      # ---------------------------
-      - name: Uninstall Helm Releases
+      # ==================================================
+      # PHASE 4: UNINSTALL HELM RELEASES
+      # ==================================================
+      - name: Uninstall All Helm Releases
         run: |
-          helm uninstall ${{ vars.APP_NAME }} -n ${{ vars.APP_NAMESPACE }} --timeout=300s || true
-          helm uninstall kube-prometheus-stack -n ${{ vars.MONITORING_NAMESPACE }} --timeout=300s || true
-          helm uninstall ingress-nginx -n ingress-nginx --timeout=300s || true
-          helm uninstall argocd -n ${{ vars.ARGOCD_NAMESPACE }} --timeout=300s || true
-        continue-on-error: true
-
-      # ---------------------------
-      # Delete CRDs (Prometheus & Grafana) before namespace deletion
-      # ---------------------------
-      - name: Delete Monitoring CRDs
-        run: |
-          echo "Deleting monitoring CRDs..."
-          kubectl get crd -o name | grep -E 'prometheus|grafana|alertmanager|servicemonitor|prometheusrule' | xargs -r kubectl delete --timeout=60s || true
+          echo "📦 Uninstalling all Helm releases..."
           
+          # Uninstall main application
+          echo "Uninstalling application: ${{ vars.APP_NAME }}"
+          helm uninstall ${{ vars.APP_NAME }} -n ${{ vars.APP_NAMESPACE }} --timeout=300s || true
+          
+          # Uninstall monitoring stack
+          echo "Uninstalling monitoring stack..."
+          helm uninstall kube-prometheus-stack -n ${{ vars.MONITORING_NAMESPACE }} --timeout=300s || true
+          
+          # Uninstall ingress controller
+          echo "Uninstalling ingress controller..."
+          helm uninstall ingress-nginx -n ingress-nginx --timeout=300s || true
+          
+          # Uninstall ArgoCD
+          echo "Uninstalling ArgoCD..."
+          helm uninstall argocd -n ${{ vars.ARGOCD_NAMESPACE }} --timeout=300s || true
+          
+          echo "⏳ Waiting for Helm releases to be fully removed..."
+          sleep 30
+          echo "✅ Helm releases uninstalled"
+        continue-on-error: true
+
+      # ==================================================
+      # PHASE 5: DELETE CRDs BEFORE NAMESPACE CLEANUP
+      # ==================================================
+      - name: Delete Custom Resource Definitions
+        run: |
+          echo "🗂️ Deleting Custom Resource Definitions..."
+          
+          # Delete monitoring CRDs
+          echo "Deleting monitoring CRDs..."
+          kubectl get crd -o name | grep -E 'prometheus|grafana|alertmanager|servicemonitor|prometheusrule|podmonitor|thanosruler' | xargs -r kubectl delete --timeout=60s || true
+          
+          # Delete ArgoCD CRDs
           echo "Deleting ArgoCD CRDs..."
           kubectl get crd -o name | grep 'argoproj.io' | xargs -r kubectl delete --timeout=60s || true
+          
+          # Delete ingress CRDs
+          echo "Deleting ingress CRDs..."
+          kubectl get crd -o name | grep -E 'ingress|nginx' | xargs -r kubectl delete --timeout=60s || true
+          
+          # Remove finalizers from stuck CRDs
+          echo "Removing finalizers from stuck CRDs..."
+          kubectl get crd -o json | jq -r '.items[]? | select(.metadata.finalizers) | .metadata.name' | while read crd_name; do
+            if [[ -n "$crd_name" ]]; then
+              echo "  Removing finalizers from CRD: $crd_name"
+              kubectl patch crd $crd_name -p '{"metadata":{"finalizers":[]}}' --type=merge || true
+            fi
+          done
+          
+          echo "✅ CRDs cleanup completed"
         continue-on-error: true
 
-      # ---------------------------
-      # Cleanup PVCs & PVs before namespace deletion
-      # ---------------------------
+      # ==================================================
+      # PHASE 6: CLEANUP PERSISTENT STORAGE
+      # ==================================================
       - name: Cleanup Persistent Storage
         run: |
-          echo "Deleting PVCs..."
+          echo "💾 Cleaning up persistent storage..."
+          
+          # Delete PVCs in target namespaces first
+          TARGET_NAMESPACES=("${{ vars.APP_NAMESPACE }}" "${{ vars.MONITORING_NAMESPACE }}" "${{ vars.ARGOCD_NAMESPACE }}" "ingress-nginx" "${{ vars.KARPENTER_NAMESPACE }}")
+          
+          for ns in "${TARGET_NAMESPACES[@]}"; do
+            if [[ -n "$ns" ]] && kubectl get namespace $ns --ignore-not-found 2>/dev/null; then
+              echo "Deleting PVCs in namespace: $ns"
+              kubectl delete pvc --all -n $ns --timeout=120s || true
+            fi
+          done
+          
+          # Delete remaining PVCs across all namespaces
+          echo "Deleting remaining PVCs across all namespaces..."
           kubectl delete pvc --all -A --timeout=120s || true
-          echo "Deleting PVs..."
+          
+          # Delete PVs
+          echo "Deleting Persistent Volumes..."
           kubectl delete pv --all --timeout=120s || true
+          
+          echo "✅ Persistent storage cleanup completed"
         continue-on-error: true
 
-      # ---------------------------
-      # Delete Namespaces with FORCE cleanup for stuck ones
-      # ---------------------------
-      - name: Delete Namespaces with Force Cleanup
+      # ==================================================
+      # PHASE 7: AGGRESSIVE PRE-NAMESPACE CLEANUP
+      # ==================================================
+      - name: Aggressive Resource Cleanup Before Namespace Deletion
         run: |
-          echo "Deleting namespaces with proper cleanup..."
+          echo "🧹 Performing aggressive cleanup of resources that might block namespace deletion..."
           
-          # Function to force delete a namespace if it gets stuck
+          # List of namespaces to clean
+          NAMESPACES=("${{ vars.APP_NAMESPACE }}" "${{ vars.MONITORING_NAMESPACE }}" "${{ vars.ARGOCD_NAMESPACE }}" "ingress-nginx" "${{ vars.KARPENTER_NAMESPACE }}")
+          
+          for ns in "${NAMESPACES[@]}"; do
+            if [[ -n "$ns" ]] && kubectl get namespace $ns --ignore-not-found 2>/dev/null; then
+              echo "========== Aggressively cleaning namespace: $ns =========="
+              
+              # Force delete all pods immediately
+              echo "Force deleting all pods..."
+              kubectl delete pods --all -n $ns --force --grace-period=0 --ignore-not-found || true
+              
+              # Delete all workload resources
+              echo "Deleting workload resources..."
+              kubectl delete deployment,replicaset,statefulset,daemonset --all -n $ns --ignore-not-found --timeout=30s || true
+              
+              # Delete all services
+              echo "Deleting services..."
+              kubectl delete svc --all -n $ns --ignore-not-found --timeout=30s || true
+              
+              # Delete any custom resources that might have finalizers
+              echo "Deleting custom resources..."
+              kubectl delete application --all -n $ns --ignore-not-found --timeout=30s || true
+              kubectl delete prometheus --all -n $ns --ignore-not-found --timeout=30s || true
+              kubectl delete alertmanager --all -n $ns --ignore-not-found --timeout=30s || true
+              kubectl delete grafana --all -n $ns --ignore-not-found --timeout=30s || true
+              kubectl delete servicemonitor --all -n $ns --ignore-not-found --timeout=30s || true
+              kubectl delete prometheusrule --all -n $ns --ignore-not-found --timeout=30s || true
+              
+              # Clean up any remaining resources with finalizers
+              echo "Removing finalizers from remaining resources in $ns..."
+              for resource_type in $(kubectl api-resources --verbs=list --namespaced -o name 2>/dev/null | grep -v events); do
+                kubectl get $resource_type -n $ns -o json 2>/dev/null | \
+                  jq -r '.items[]? | select(.metadata.finalizers) | .metadata.name' 2>/dev/null | \
+                  while read resource_name; do
+                    if [[ -n "$resource_name" ]]; then
+                      echo "    Patching $resource_type/$resource_name"
+                      kubectl patch $resource_type $resource_name -n $ns -p '{"metadata":{"finalizers":[]}}' --type=merge 2>/dev/null || true
+                    fi
+                  done
+              done
+              
+              echo "✅ Completed aggressive cleanup for namespace: $ns"
+            fi
+          done
+          
+          echo "⏳ Waiting for cleanup to propagate..."
+          sleep 30
+          echo "✅ Pre-namespace cleanup completed"
+        continue-on-error: true
+
+      # ==================================================
+      # PHASE 8: DELETE NAMESPACES WITH ENHANCED FORCE CLEANUP
+      # ==================================================
+      - name: Delete Namespaces with Enhanced Force Cleanup
+        run: |
+          #!/bin/bash
+          
+          echo "🗑️ Starting enhanced namespace deletion process..."
+          
+          # Function to completely force delete a namespace
           force_delete_namespace() {
             local ns=$1
-            echo "Processing namespace: $ns"
+            echo "========== Processing namespace: $ns =========="
             
+            if ! kubectl get namespace $ns --ignore-not-found 2>/dev/null; then
+              echo "✅ Namespace $ns does not exist"
+              return 0
+            fi
+            
+            echo "📋 Current namespace status:"
+            kubectl get namespace $ns -o wide || true
+            
+            # Step 1: Final resource cleanup in the namespace
+            echo "🧹 Final cleanup of all resources in namespace $ns..."
+            
+            # Remove finalizers from all resources in the namespace
+            for resource_type in $(kubectl api-resources --verbs=list --namespaced -o name 2>/dev/null | grep -v events); do
+              kubectl get $resource_type -n $ns -o json 2>/dev/null | \
+                jq -r '.items[]? | select(.metadata.finalizers) | .metadata.name' 2>/dev/null | \
+                while read resource_name; do
+                  if [[ -n "$resource_name" ]]; then
+                    echo "    Removing finalizers from $resource_type/$resource_name"
+                    kubectl patch $resource_type $resource_name -n $ns -p '{"metadata":{"finalizers":[]}}' --type=merge 2>/dev/null || true
+                  fi
+                done
+            done
+            
+            # Step 2: Try graceful deletion first
+            echo "🔄 Attempting graceful namespace deletion..."
+            kubectl delete namespace $ns --timeout=60s --ignore-not-found &
+            DELETE_PID=$!
+            
+            # Wait for graceful deletion
+            sleep 30
+            
+            # Step 3: If still exists, force delete
             if kubectl get namespace $ns --ignore-not-found 2>/dev/null; then
-              # Try normal deletion first with timeout
-              kubectl delete namespace $ns --ignore-not-found --timeout=120s || {
-                echo "Normal deletion failed for $ns, trying force deletion..."
+              echo "⚡ Graceful deletion failed, forcing deletion..."
+              
+              # Kill the background delete process
+              kill $DELETE_PID 2>/dev/null || true
+              
+              # Get current namespace JSON and remove finalizers
+              kubectl get namespace $ns -o json | \
+                jq 'del(.spec.finalizers[])' | \
+                kubectl replace --raw "/api/v1/namespaces/$ns/finalize" -f - 2>/dev/null || true
+              
+              # Alternative approach - patch the namespace directly
+              kubectl patch namespace $ns -p '{"metadata":{"finalizers":[]}}' --type=merge 2>/dev/null || true
+              
+              # Wait a bit more
+              sleep 15
+              
+              # Final check and force if needed
+              if kubectl get namespace $ns --ignore-not-found 2>/dev/null; then
+                echo "🚨 Trying nuclear option - direct deletion..."
                 
-                # Remove finalizers and force delete
-                kubectl get namespace $ns -o json | \
-                  jq '.spec.finalizers = []' | \
-                  kubectl replace --raw "/api/v1/namespaces/$ns/finalize" -f - || true
+                # Delete the namespace object directly
+                kubectl delete namespace $ns --force --grace-period=0 2>/dev/null || true
                 
-                # Wait a moment
+                # Patch with empty spec
+                kubectl patch namespace $ns -p '{"spec":{"finalizers":[]}}' --type=merge 2>/dev/null || true
+                kubectl patch namespace $ns -p '{"metadata":{"finalizers":[]}}' --type=merge 2>/dev/null || true
+                
                 sleep 10
-                
-                # Verify deletion
-                if kubectl get namespace $ns --ignore-not-found 2>/dev/null; then
-                  echo "WARNING: Namespace $ns still exists after force deletion"
-                else
-                  echo "Successfully force deleted namespace $ns"
-                fi
-              }
+              fi
+            fi
+            
+            # Final verification
+            if kubectl get namespace $ns --ignore-not-found 2>/dev/null; then
+              echo "❌ WARNING: Namespace $ns still exists after all attempts"
+              echo "📋 Final namespace details:"
+              kubectl get namespace $ns -o yaml || true
+              return 1
             else
-              echo "Namespace $ns does not exist"
+              echo "✅ Successfully deleted namespace $ns"
+              return 0
             fi
           }
           
-          # Delete namespaces one by one with force cleanup
-          for ns in ${{ vars.APP_NAMESPACE }} ${{ vars.MONITORING_NAMESPACE }} ${{ vars.ARGOCD_NAMESPACE }} ingress-nginx ${{ vars.KARPENTER_NAMESPACE }}; do
-            force_delete_namespace $ns
+          # Array of namespaces to delete
+          NAMESPACES=("${{ vars.APP_NAMESPACE }}" "${{ vars.MONITORING_NAMESPACE }}" "${{ vars.ARGOCD_NAMESPACE }}" "ingress-nginx" "${{ vars.KARPENTER_NAMESPACE }}")
+          
+          # Delete each namespace
+          FAILED_NAMESPACES=()
+          for ns in "${NAMESPACES[@]}"; do
+            if [[ -n "$ns" ]]; then
+              if ! force_delete_namespace "$ns"; then
+                FAILED_NAMESPACES+=("$ns")
+              fi
+              echo ""
+            fi
           done
           
-          echo "Final namespace check:"
+          # Summary
+          echo "========== NAMESPACE CLEANUP SUMMARY =========="
+          echo "📊 Remaining namespaces:"
           kubectl get namespaces || true
+          
+          if [[ ${#FAILED_NAMESPACES[@]} -eq 0 ]]; then
+            echo "✅ All target namespaces successfully deleted!"
+          else
+            echo "❌ Failed to delete namespaces: ${FAILED_NAMESPACES[*]}"
+            echo "⚠️  You may need to check these manually after terraform destroy completes"
+            # Don't fail the workflow for namespace cleanup issues
+          fi
+          
+          echo "✅ Namespace deletion process completed"
         continue-on-error: true
 
-      # ---------------------------
-      # Wait for cleanup to complete
-      # ---------------------------
-      - name: Wait for cleanup and verify
+      # ==================================================
+      # PHASE 9: FINAL VERIFICATION AND WAIT
+      # ==================================================
+      - name: Final Cleanup Verification
         run: |
-          echo "Waiting for cleanup to complete..."
+          echo "🔍 Performing final cleanup verification..."
+          
+          echo "⏳ Waiting for final cleanup to complete..."
           sleep 60
           
-          echo "Verifying cleanup..."
-          kubectl get pods -n ${{ vars.KARPENTER_NAMESPACE }} 2>/dev/null || echo "Karpenter namespace not found (expected)"
-          kubectl get crd | grep karpenter || echo "No Karpenter CRDs found (expected)"
-          kubectl get namespaces | grep -E "${{ vars.APP_NAMESPACE }}|${{ vars.MONITORING_NAMESPACE }}|${{ vars.ARGOCD_NAMESPACE }}" || echo "Target namespaces deleted (expected)"
+          echo "📊 Final cluster state verification:"
+          echo "Remaining pods in target namespaces:"
+          kubectl get pods -A | grep -E "${{ vars.APP_NAMESPACE }}|${{ vars.MONITORING_NAMESPACE }}|${{ vars.ARGOCD_NAMESPACE }}|ingress-nginx|${{ vars.KARPENTER_NAMESPACE }}" || echo "✅ No pods found in target namespaces"
+          
+          echo "Remaining namespaces:"
+          kubectl get namespaces | grep -E "${{ vars.APP_NAMESPACE }}|${{ vars.MONITORING_NAMESPACE }}|${{ vars.ARGOCD_NAMESPACE }}|ingress-nginx|${{ vars.KARPENTER_NAMESPACE }}" || echo "✅ No target namespaces found"
+          
+          echo "Remaining LoadBalancer services:"
+          kubectl get svc -A --field-selector spec.type=LoadBalancer | grep -v "NAMESPACE" || echo "✅ No LoadBalancer services found"
+          
+          echo "Remaining Karpenter CRDs:"
+          kubectl get crd | grep karpenter || echo "✅ No Karpenter CRDs found"
+          
+          echo "✅ Final verification completed - proceeding to Terraform destroy"
 
-      # ---------------------------
-      # Terraform Destroy
-      # ---------------------------
+      # ==================================================
+      # PHASE 10: TERRAFORM DESTROY
+      # ==================================================
       - name: Terraform Init
         run: terraform init
         working-directory: ./Terraform
@@ -259,11 +488,12 @@ jobs:
         run: terraform destroy -auto-approve
         working-directory: ./Terraform
 
-      # ---------------------------
-      # Clean up GitHub Variables
-      # ---------------------------
-      - name: Remove GitHub repository variables
+      # ==================================================
+      # PHASE 11: CLEANUP GITHUB VARIABLES
+      # ==================================================
+      - name: Remove GitHub Repository Variables
         run: |
+          echo "🧹 Cleaning up GitHub repository variables..."
           gh variable delete CLUSTER_NAME --repo $GITHUB_REPOSITORY || true
           gh variable delete APP_NAMESPACE --repo $GITHUB_REPOSITORY || true
           gh variable delete MONITORING_NAMESPACE --repo $GITHUB_REPOSITORY || true
@@ -274,6 +504,22 @@ jobs:
           gh variable delete KARPENTER_NODE_ROLE --repo $GITHUB_REPOSITORY || true
           gh variable delete KARPENTER_INSTANCE_PROFILE --repo $GITHUB_REPOSITORY || true
           gh variable delete KARPENTER_NAMESPACE --repo $GITHUB_REPOSITORY || true
+          echo "✅ GitHub variables cleanup completed"
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
         continue-on-error: true
+
+      # ==================================================
+      # FINAL SUCCESS MESSAGE
+      # ==================================================
+      - name: Destroy Complete
+        run: |
+          echo "🎉 ========================================="
+          echo "🎉 TERRAFORM DESTROY WORKFLOW COMPLETED!"
+          echo "🎉 ========================================="
+          echo "✅ All resources have been cleaned up"
+          echo "✅ Infrastructure has been destroyed"
+          echo "✅ GitHub variables have been removed"
+          echo ""
+          echo "🔍 If any namespaces are still stuck, you can manually run:"
+          echo "kubectl get namespace <namespace-name> -o json | jq 'del(.spec.finalizers[])' | kubectl replace --raw \"/api/v1/namespaces/<namespace-name>/finalize\" -f -"
