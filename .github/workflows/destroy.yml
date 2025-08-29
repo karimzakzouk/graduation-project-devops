@@ -84,11 +84,33 @@ jobs:
       # Delete Karpenter Resources (Updated)
       # ---------------------------
 
-      - name: Scale down to release nodes first
+# Replace the Karpenter cleanup section in your workflow with this enhanced version
+
+      # ---------------------------
+      # Scale down workloads FIRST
+      # ---------------------------
+      - name: Scale down all workloads before cleanup
         run: |
-          kubectl scale deployment --all --replicas=0 -n ${{ vars.APP_NAMESPACE }} || true
-          sleep 30  # Let Karpenter scale down naturally
-        continue-on-error: true
+          echo "Scaling down all deployments and deleting services to trigger LB cleanup..."
+          
+          # Scale down ALL deployments across ALL namespaces (not just app namespace)
+          kubectl get deployments --all-namespaces -o json | jq -r '.items[] | "\(.metadata.namespace) \(.metadata.name)"' | while read namespace deployment; do
+            echo "Scaling down deployment $deployment in namespace $namespace"
+            kubectl scale deployment $deployment --replicas=0 -n $namespace || true
+          done
+          
+          # Scale down daemonsets that might be running
+          kubectl get daemonsets --all-namespaces -o json | jq -r '.items[] | "\(.metadata.namespace) \(.metadata.name)"' | while read namespace daemonset; do
+            echo "Deleting daemonset $daemonset in namespace $namespace"
+            kubectl delete daemonset $daemonset -n $namespace --ignore-not-found || true
+          done
+          
+          # Delete ALL services of type LoadBalancer IMMEDIATELY
+          echo "Deleting LoadBalancer services..."
+          kubectl get services --all-namespaces -o json | jq -r '.items[] | select(.spec.type=="LoadBalancer") | "\(.metadata.namespace) \(.metadata.name)"' | while read namespace service; do
+            echo "Deleting service $service in namespace $namespace"
+            kubectl delete service $service -n $namespace --ignore-not-found || true
+          done
       
       - name: Delete Karpenter Provisioners and AWSNodeTemplates
         run: |
