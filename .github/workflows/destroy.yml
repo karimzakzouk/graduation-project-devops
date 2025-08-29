@@ -342,8 +342,8 @@ jobs:
             local ns=$1
             echo "========== Processing namespace: $ns =========="
             
-            if ! kubectl get namespace $ns --ignore-not-found 2>/dev/null; then
-              echo "✅ Namespace $ns does not exist"
+            if ! kubectl get namespace "$ns" &>/dev/null; then
+              echo "✅ Namespace $ns does not exist, skipping..."
               return 0
             fi
             
