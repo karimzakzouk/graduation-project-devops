@@ -24,15 +24,13 @@ This project showcases a **Solar System visualization web application** built wi
 ---
 
 
+
 ## 🏗️ Project Architecture Diagram
 
-You can watch the architecture diagram video below for a visual overview of the system design:
+You can view the architecture diagram below for a visual overview of the system design:
 
 <p align="center">
-  <video width="600" controls>
-    <source src="assets/Diagram.mp4" type="video/mp4">
-    Your browser does not support the video tag.
-  </video>
+  <img src="assets/Diagram.gif" alt="Project Architecture Diagram" width="600" />
 </p>
 
 ---
