@@ -1,24 +1,29 @@
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
 metadata:
-  name: ${KARPENTER_NODECLASS_NAME}
+  name: ${KARPENTER_NODECLASS_NAME} # e.g., solar-nodeclass
 spec:
   subnetSelector:
     karpenter.sh/discovery: ${CLUSTER_NAME}
   securityGroupSelector:
     karpenter.sh/discovery: ${CLUSTER_NAME}
   amiFamily: AL2
-  instanceProfile: ${KARPENTER_INSTANCE_PROFILE}
+  instanceProfile: ${KARPENTER_INSTANCE_PROFILE} # e.g., KarpenterNodeInstanceProfile
 ---
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 metadata:
-  name: ${KARPENTER_NODEPOOL_NAME}
+  name: ${KARPENTER_NODEPOOL_NAME} # e.g., solar-nodepool
 spec:
   requirements:
-    - key: "karpenter.sh/instance-type"
+    # Allow t2 or t3 instances
+    - key: "karpenter.k8s.aws/instance-family"
       operator: In
-      values: ["t3.medium"]             # force t3.medium nodes
+      values: ["t2", "t3"]
+    # Allow multiple sizes
+    - key: "karpenter.k8s.aws/instance-size"
+      operator: In
+      values: ["small", "medium", "large"]
     - key: "karpenter.sh/capacity-type"
       operator: In
       values: ["spot", "on-demand"]
