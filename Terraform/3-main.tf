@@ -23,6 +23,7 @@ module "eks" {
 # EKS Addon: metrics-server (enables HPA CPU/memory metrics)
 resource "aws_eks_addon" "metrics_server" {
   cluster_name             = module.eks.cluster_name
+  depends_on = [module.eks]
   addon_name               = "metrics-server"
   addon_version            = null
   resolve_conflicts_on_create = "OVERWRITE"
