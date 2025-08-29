@@ -139,7 +139,6 @@ resource "aws_iam_role" "karpenter_controller" {
     ]
   })
 }
-
 resource "aws_iam_role_policy" "karpenter_controller" {
   name = "KarpenterControllerPolicy"
   role = aws_iam_role.karpenter_controller.id
@@ -180,6 +179,16 @@ resource "aws_iam_role_policy" "karpenter_controller" {
           "sqs:ReceiveMessage"
         ]
         Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = "iam:CreateServiceLinkedRole"
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "iam:AWSServiceName" = "spot.amazonaws.com"
+          }
+        }
       }
     ]
   })
