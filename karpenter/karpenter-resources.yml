@@ -21,6 +21,5 @@ spec:
       values: ["spot", "on-demand"]
   providerRef:
     name: ${KARPENTER_NODECLASS_NAME}
-  ttlSecondsAfterEmpty: 30
   consolidation:
     enabled: true
