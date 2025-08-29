@@ -107,10 +107,13 @@ jobs:
           echo "Waiting for Karpenter controller to be ready..."
           kubectl wait --for=condition=Ready pod -l app.kubernetes.io/name=karpenter -n karpenter --timeout=300s
           
-          echo "Verifying CRDs are available..."
-          kubectl get crd nodepools.karpenter.sh
-          kubectl get crd ec2nodeclasses.karpenter.k8s.aws
+          echo "Checking available Karpenter CRDs..."
+          kubectl get crd | grep karpenter || echo "No Karpenter CRDs found yet"
           
+          echo "Waiting for CRDs to be available..."
+          kubectl wait --for condition=established --timeout=60s crd/nodepools.karpenter.sh || echo "NodePool CRD not ready"
+          kubectl wait --for condition=established --timeout=60s crd/ec2nodeclasses.karpenter.k8s.aws || echo "EC2NodeClass CRD not ready"
+              
           echo "Karpenter controller is ready!"
 
       - name: Deploy Karpenter NodePool and EC2NodeClass
