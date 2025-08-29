@@ -203,6 +203,7 @@ resource "aws_sqs_queue" "karpenter_interruption" {
 resource "aws_iam_service_linked_role" "spot" {
   aws_service_name = "spot.amazonaws.com"
   description      = "Service-linked role for EC2 Spot Instances used by Karpenter"
+  custom_suffix    = "karpenter"
 
   lifecycle {
     prevent_destroy = true

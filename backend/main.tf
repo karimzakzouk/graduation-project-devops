@@ -146,6 +146,11 @@ resource "aws_iam_role_policy" "github_actions_infra_policy" {
           "iam:TagRole",
           "iam:UntagRole",
           "iam:ListRoleTags",
+          
+          # Service Linked Role permissions (ADDED - this was missing!)
+          "iam:CreateServiceLinkedRole",
+          "iam:DeleteServiceLinkedRole",
+          "iam:GetServiceLinkedRoleDeletionStatus",
 
           # Additional permissions for EKS
           "autoscaling:*",
