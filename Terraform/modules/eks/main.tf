@@ -200,13 +200,4 @@ resource "aws_sqs_queue" "karpenter_interruption" {
   message_retention_seconds = 300
 }
 
-resource "aws_iam_service_linked_role" "spot" {
-  aws_service_name = "spot.amazonaws.com"
-  description      = "Service-linked role for EC2 Spot Instances used by Karpenter"
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
 data "aws_caller_identity" "current" {}
