@@ -83,6 +83,13 @@ jobs:
       # ---------------------------
       # Delete Karpenter Resources (Updated)
       # ---------------------------
+
+      - name: Scale down to release nodes first
+        run: |
+          kubectl scale deployment --all --replicas=0 --all-namespaces || true
+          sleep 30  # Let Karpenter scale down naturally
+        continue-on-error: true
+      
       - name: Delete Karpenter Provisioners and AWSNodeTemplates
         run: |
           echo "Deleting Karpenter Provisioners..."
