@@ -22,3 +22,5 @@ spec:
   providerRef:
     name: ${KARPENTER_NODECLASS_NAME}
   ttlSecondsAfterEmpty: 30
+  consolidation:
+    enabled: true
