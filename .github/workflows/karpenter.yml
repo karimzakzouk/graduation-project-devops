@@ -111,8 +111,8 @@ jobs:
           kubectl get crd | grep karpenter || echo "No Karpenter CRDs found yet"
           
           echo "Waiting for CRDs to be available..."
-          kubectl wait --for condition=established --timeout=60s crd/nodepools.karpenter.sh || echo "NodePool CRD not ready"
-          kubectl wait --for condition=established --timeout=60s crd/ec2nodeclasses.karpenter.k8s.aws || echo "EC2NodeClass CRD not ready"
+          kubectl wait --for condition=established --timeout=60s crd/awsnodetemplates.karpenter.k8s.aws || echo "AWSNodeTemplate CRD not ready"
+          kubectl wait --for condition=established --timeout=60s crd/provisioners.karpenter.sh || echo "Provisioner CRD not ready"
               
           echo "Karpenter controller is ready!"
 
@@ -133,10 +133,10 @@ jobs:
           echo "Checking Karpenter controller status..."
           kubectl get pods -n karpenter
           
-          echo "Checking NodePool..."
-          kubectl get nodepool -n karpenter
+          echo "Checking Provisioner..."
+          kubectl get provisioner
           
-          echo "Checking EC2NodeClass..."
-          kubectl get ec2nodeclass -n karpenter
+          echo "Checking AWSNodeTemplate..."
+          kubectl get awsnodetemplate
           
           echo "Karpenter installation completed successfully!"

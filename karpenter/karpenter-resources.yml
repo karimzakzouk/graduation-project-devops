@@ -2,7 +2,6 @@ apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
 metadata:
   name: ${KARPENTER_NODECLASS_NAME}
-  namespace: ${KARPENTER_NAMESPACE}
 spec:
   subnetSelector:
     karpenter.sh/discovery: ${CLUSTER_NAME}
@@ -10,24 +9,16 @@ spec:
     karpenter.sh/discovery: ${CLUSTER_NAME}
   amiFamily: AL2
   instanceProfile: ${KARPENTER_INSTANCE_PROFILE}
-  role: ${KARPENTER_NODE_ROLE}
-
 ---
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 metadata:
   name: ${KARPENTER_NODEPOOL_NAME}
 spec:
-  cluster:
-    name: ${CLUSTER_NAME}
-  provider:
-    awsNodeTemplate:
-      name: ${KARPENTER_NODECLASS_NAME}
   requirements:
     - key: "karpenter.sh/capacity-type"
       operator: In
       values: ["spot", "on-demand"]
-    - key: "kubernetes.io/arch"
-      operator: In
-      values: ["amd64"]
+  providerRef:
+    name: ${KARPENTER_NODECLASS_NAME}
   ttlSecondsAfterEmpty: 30
