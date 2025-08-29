@@ -76,19 +76,19 @@ jobs:
       - name: Install/Upgrade Karpenter
         run: |
           CLUSTER_ENDPOINT=$(aws eks describe-cluster --name ${{ inputs.cluster_name }} --query 'cluster.endpoint' --output text)
-          helm upgrade --install karpenter karpenter/karpenter \
-            --namespace ${{ inputs.karpenter_namespace }} \
+          helm install karpenter karpenter/karpenter \
+            --namespace karpenter \
             --create-namespace \
             --timeout 15m \
-            --set "settings.clusterName=${{ inputs.cluster_name }}" \
-            --set "settings.clusterEndpoint=${CLUSTER_ENDPOINT}" \
-            --set "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/KarpenterControllerRole-${{ inputs.cluster_name }}" \
-            --set "settings.defaultInstanceProfile=${{ inputs.karpenter_instance_profile }}" \
-            --set "settings.interruptionQueue=karpenter-interruption-queue-${{ inputs.cluster_name }}" \
-            --set controller.resources.requests.cpu=${{ inputs.karpenter_controller_cpu_request }} \
-            --set controller.resources.requests.memory=${{ inputs.karpenter_controller_memory_request }} \
-            --set controller.resources.limits.cpu=${{ inputs.karpenter_controller_cpu_limit }} \
-            --set controller.resources.limits.memory=${{ inputs.karpenter_controller_memory_limit }} \
+            --set settings.aws.clusterName=solar-system-app-cluster \
+            --set settings.aws.clusterEndpoint="${CLUSTER_ENDPOINT}" \
+            --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=arn:aws:iam::382284572497:role/KarpenterControllerRole-solar-system-app-cluster \
+            --set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile \
+            --set settings.aws.interruptionQueueName=karpenter-interruption-queue-solar-system-app-cluster \
+            --set controller.resources.requests.cpu=500m \
+            --set controller.resources.requests.memory=512Mi \
+            --set controller.resources.limits.cpu=1 \
+            --set controller.resources.limits.memory=1Gi \
             --wait
 
       - name: Wait for Karpenter to be Ready
