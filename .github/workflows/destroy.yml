@@ -26,9 +26,17 @@ jobs:
           echo "APP_NAME: ${{ vars.APP_NAME }}"
           echo "KARPENTER_NODEPOOL_NAME: ${{ vars.KARPENTER_NODEPOOL_NAME }}"
           echo "KARPENTER_NODECLASS_NAME: ${{ vars.KARPENTER_NODECLASS_NAME }}"
+          echo "KARPENTER_NODE_ROLE: ${{ vars.KARPENTER_NODE_ROLE }}"
+          echo "KARPENTER_INSTANCE_PROFILE: ${{ vars.KARPENTER_INSTANCE_PROFILE }}"
           echo "KARPENTER_NAMESPACE: ${{ vars.KARPENTER_NAMESPACE }}"
           if [[ -z "${{ vars.KARPENTER_NODEPOOL_NAME }}" ]]; then
             echo "WARNING: KARPENTER_NODEPOOL_NAME variable not found. Karpenter resources may not be deployed."
+          fi
+          if [[ -z "${{ vars.KARPENTER_NODE_ROLE }}" ]]; then
+            echo "WARNING: KARPENTER_NODE_ROLE variable not found. Karpenter resources may not be deployed."
+          fi
+          if [[ -z "${{ vars.KARPENTER_INSTANCE_PROFILE }}" ]]; then
+            echo "WARNING: KARPENTER_INSTANCE_PROFILE variable not found. Karpenter resources may not be deployed."
           fi
           if [[ -z "${{ vars.KARPENTER_NAMESPACE }}" ]]; then
             echo "WARNING: KARPENTER_NAMESPACE variable not found. Karpenter resources may not be deployed."
@@ -73,18 +81,71 @@ jobs:
         continue-on-error: true
 
       # ---------------------------
-      # Delete Karpenter Resources
+      # Delete Karpenter Resources (Updated)
       # ---------------------------
-      - name: Delete Karpenter Resources
+      - name: Delete Karpenter Provisioners and AWSNodeTemplates
         run: |
-          kubectl delete nodepool ${{ vars.KARPENTER_NODEPOOL_NAME }} -n ${{ vars.KARPENTER_NAMESPACE }} --ignore-not-found || true
-          kubectl delete ec2nodeclass ${{ vars.KARPENTER_NODECLASS_NAME }} -n ${{ vars.KARPENTER_NAMESPACE }} --ignore-not-found || true
-          helm uninstall karpenter-config -n ${{ vars.KARPENTER_NAMESPACE }} || true
+          echo "Deleting Karpenter Provisioners..."
+          kubectl delete provisioner ${{ vars.KARPENTER_NODEPOOL_NAME }} --ignore-not-found -n ${{ vars.KARPENTER_NAMESPACE }} || true
+          kubectl delete provisioner --all -n ${{ vars.KARPENTER_NAMESPACE }} --ignore-not-found || true
+
+          echo "Deleting Karpenter AWSNodeTemplates..."
+          kubectl delete awsnodetemplate ${{ vars.KARPENTER_NODECLASS_NAME }} --ignore-not-found -n ${{ vars.KARPENTER_NAMESPACE }} || true
+          kubectl delete awsnodetemplate --all -n ${{ vars.KARPENTER_NAMESPACE }} --ignore-not-found || true
+
+          echo "Waiting for resources to be cleaned up..."
+          sleep 10
+        continue-on-error: true
+
+      - name: Clean up Karpenter CRDs and Webhooks
+        run: |
+          echo "Deleting Karpenter CRDs..."
+          kubectl delete crd provisioners.karpenter.sh --ignore-not-found || true
+          kubectl delete crd awsnodetemplates.karpenter.k8s.aws --ignore-not-found || true
+          
+          echo "Deleting Karpenter webhooks..."
+          kubectl delete validatingwebhookconfiguration defaulting.webhook.karpenter.sh --ignore-not-found || true
+          kubectl delete validatingwebhookconfiguration validation.webhook.karpenter.sh --ignore-not-found || true
+          kubectl delete mutatingwebhookconfiguration defaulting.webhook.karpenter.sh --ignore-not-found || true
+          
+          echo "Deleting Karpenter finalizers if stuck..."
+          kubectl patch crd provisioners.karpenter.sh -p '{"metadata":{"finalizers":[]}}' --type=merge || true
+          kubectl patch crd awsnodetemplates.karpenter.k8s.aws -p '{"metadata":{"finalizers":[]}}' --type=merge || true
+        continue-on-error: true
+
+
+      - name: Uninstall Karpenter Helm Release
+        run: |
+          echo "Uninstalling Karpenter Helm release..."
           helm uninstall karpenter -n ${{ vars.KARPENTER_NAMESPACE }} || true
+          
+          echo "Waiting for pods to terminate..."
+          kubectl wait --for=delete pod -l app.kubernetes.io/name=karpenter -n ${{ vars.KARPENTER_NAMESPACE }} --timeout=120s || true
+          
+          echo "Force deleting any remaining pods..."
+          kubectl delete pods --all -n ${{ vars.KARPENTER_NAMESPACE }} --force --grace-period=0 || true
+        continue-on-error: true
+
+      - name: Clean up Karpenter CRDs and Webhooks
+        run: |
+          echo "Deleting Karpenter CRDs..."
+          kubectl delete crd nodepools.karpenter.sh --ignore-not-found || true
+          kubectl delete crd provisioners.karpenter.sh --ignore-not-found || true
+          kubectl delete crd awsnodetemplates.karpenter.k8s.aws --ignore-not-found || true
+          kubectl delete crd ec2nodeclasses.karpenter.k8s.aws --ignore-not-found || true
+          
+          echo "Deleting Karpenter webhooks..."
+          kubectl delete validatingwebhookconfiguration defaulting.webhook.karpenter.sh --ignore-not-found || true
+          kubectl delete validatingwebhookconfiguration validation.webhook.karpenter.sh --ignore-not-found || true
+          kubectl delete mutatingwebhookconfiguration defaulting.webhook.karpenter.sh --ignore-not-found || true
+          
+          echo "Deleting Karpenter finalizers if stuck..."
+          kubectl patch crd nodepools.karpenter.sh -p '{"metadata":{"finalizers":[]}}' --type=merge || true
+          kubectl patch crd ec2nodeclasses.karpenter.k8s.aws -p '{"metadata":{"finalizers":[]}}' --type=merge || true
         continue-on-error: true
 
       # ---------------------------
-      # Uninstall Helm Releases
+      # Uninstall Other Helm Releases
       # ---------------------------
       - name: Uninstall Helm Releases
         run: |
@@ -102,14 +163,17 @@ jobs:
           kubectl delete namespace ${{ vars.APP_NAMESPACE }} --ignore-not-found
           kubectl delete namespace ${{ vars.MONITORING_NAMESPACE }} --ignore-not-found
           kubectl delete namespace ${{ vars.ARGOCD_NAMESPACE }} --ignore-not-found
-          kubectl delete namespace ${{ vars.KARPENTER_NAMESPACE }} --ignore-not-found
           kubectl delete namespace ingress-nginx --ignore-not-found
+          
+          # Delete Karpenter namespace last and force if needed
+          kubectl delete namespace ${{ vars.KARPENTER_NAMESPACE }} --ignore-not-found --timeout=60s || true
+          kubectl delete namespace ${{ vars.KARPENTER_NAMESPACE }} --force --grace-period=0 --ignore-not-found || true
         continue-on-error: true
 
       # ---------------------------
       # Delete CRDs (Prometheus & Grafana)
       # ---------------------------
-      - name: Delete CRDs
+      - name: Delete Monitoring CRDs
         run: |
           kubectl get crd -o name | grep -E 'prometheus|grafana|alertmanager|servicemonitor|prometheusrule' | xargs -r kubectl delete || true
         continue-on-error: true
@@ -121,6 +185,19 @@ jobs:
         run: |
           kubectl delete pvc --all -A || true
           kubectl delete pv --all || true
+        continue-on-error: true
+
+      # ---------------------------
+      # Final cleanup verification
+      # ---------------------------
+      - name: Verify Karpenter cleanup
+        run: |
+          echo "Verifying Karpenter cleanup..."
+          kubectl get pods -n ${{ vars.KARPENTER_NAMESPACE }} || echo "Karpenter namespace not found (expected)"
+          kubectl get crd | grep karpenter || echo "No Karpenter CRDs found (expected)"
+          kubectl get validatingwebhookconfiguration | grep karpenter || echo "No Karpenter webhooks found (expected)"
+          kubectl get mutatingwebhookconfiguration | grep karpenter || echo "No Karpenter webhooks found (expected)"
+          helm list -n ${{ vars.KARPENTER_NAMESPACE }} || echo "No Helm releases in karpenter namespace (expected)"
         continue-on-error: true
 
       # ---------------------------
@@ -156,6 +233,8 @@ jobs:
           gh variable delete APP_NAME --repo $GITHUB_REPOSITORY || true
           gh variable delete KARPENTER_NODEPOOL_NAME --repo $GITHUB_REPOSITORY || true
           gh variable delete KARPENTER_NODECLASS_NAME --repo $GITHUB_REPOSITORY || true
+          gh variable delete KARPENTER_NODE_ROLE --repo $GITHUB_REPOSITORY || true
+          gh variable delete KARPENTER_INSTANCE_PROFILE --repo $GITHUB_REPOSITORY || true
           gh variable delete KARPENTER_NAMESPACE --repo $GITHUB_REPOSITORY || true
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
