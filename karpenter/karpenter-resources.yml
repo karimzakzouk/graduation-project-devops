@@ -16,10 +16,14 @@ metadata:
   name: ${KARPENTER_NODEPOOL_NAME}
 spec:
   requirements:
+    - key: "karpenter.sh/instance-type"
+      operator: In
+      values: ["t3.medium"]             # force t3.medium nodes
     - key: "karpenter.sh/capacity-type"
       operator: In
       values: ["spot", "on-demand"]
   providerRef:
     name: ${KARPENTER_NODECLASS_NAME}
+  ttlSecondsAfterEmpty: 30            # scale down when empty
   consolidation:
     enabled: true
