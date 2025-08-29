@@ -85,3 +85,63 @@ variable "app_name" {
   type        = string
   default     = "my-app"
 }
+
+# Karpenter Variables
+variable "karpenter_nodepool_name" {
+  description = "Name of the Karpenter NodePool"
+  type        = string
+  default     = "default-nodepool"
+}
+
+variable "karpenter_nodeclass_name" {
+  description = "Name of the Karpenter EC2NodeClass"
+  type        = string
+  default     = "default-nodeclass"
+}
+
+variable "karpenter_node_role" {
+  description = "IAM role name for Karpenter nodes"
+  type        = string
+  default     = "KarpenterNodeRole"
+}
+
+variable "karpenter_instance_profile" {
+  description = "Instance profile name for Karpenter nodes"
+  type        = string
+  default     = "KarpenterNodeInstanceProfile"
+}
+
+variable "karpenter_namespace" {
+  description = "Kubernetes namespace for Karpenter resources"
+  type        = string
+  default     = "karpenter"
+
+  validation {
+    condition     = can(regex("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", var.karpenter_namespace))
+    error_message = "Karpenter namespace must be a valid Kubernetes namespace name (lowercase alphanumeric and hyphens only)."
+  }
+}
+
+variable "karpenter_controller_cpu_request" {
+  description = "CPU request for Karpenter controller"
+  type        = string
+  default     = "1"
+}
+
+variable "karpenter_controller_memory_request" {
+  description = "Memory request for Karpenter controller"
+  type        = string
+  default     = "1Gi"
+}
+
+variable "karpenter_controller_cpu_limit" {
+  description = "CPU limit for Karpenter controller"
+  type        = string
+  default     = "1"
+}
+
+variable "karpenter_controller_memory_limit" {
+  description = "Memory limit for Karpenter controller"
+  type        = string
+  default     = "1Gi"
+}

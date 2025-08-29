@@ -1,0 +1,108 @@
+name: Karpenter Deployment
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      cluster_name:
+        description: 'EKS Cluster Name'
+        required: true
+        type: string
+      karpenter_nodepool_name:
+        description: 'Karpenter NodePool Name'
+        required: true
+        type: string
+      karpenter_nodeclass_name:
+        description: 'Karpenter EC2NodeClass Name'
+        required: true
+        type: string
+      karpenter_node_role:
+        description: 'Karpenter Node IAM Role'
+        required: true
+        type: string
+      karpenter_instance_profile:
+        description: 'Karpenter Instance Profile'
+        required: true
+        type: string
+      karpenter_namespace:
+        description: 'Kubernetes namespace for Karpenter'
+        required: true
+        type: string
+      karpenter_controller_cpu_request:
+        description: 'CPU request for Karpenter controller'
+        required: true
+        type: string
+      karpenter_controller_memory_request:
+        description: 'Memory request for Karpenter controller'
+        required: true
+        type: string
+      karpenter_controller_cpu_limit:
+        description: 'CPU limit for Karpenter controller'
+        required: true
+        type: string
+      karpenter_controller_memory_limit:
+        description: 'Memory limit for Karpenter controller'
+        required: true
+        type: string
+
+jobs:
+  karpenter:
+    name: Karpenter Installation & Configuration
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsInfraRole
+          aws-region: us-east-1
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name ${{ inputs.cluster_name }} --region us-east-1
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4.2.0
+        with:
+          version: v3.14.0
+
+      - name: Add Karpenter Helm Repo
+        run: |
+          helm repo add karpenter https://charts.karpenter.sh/
+          helm repo update
+
+      - name: Install/Upgrade Karpenter
+        run: |
+          helm upgrade --install karpenter karpenter/karpenter \
+            --namespace ${{ inputs.karpenter_namespace }} \
+            --create-namespace \
+            --set "settings.clusterName=${{ inputs.cluster_name }}" \
+            --set "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/KarpenterControllerRole-${{ inputs.cluster_name }}" \
+            --set "settings.defaultInstanceProfile=${{ inputs.karpenter_instance_profile }}" \
+            --set "settings.interruptionQueue=karpenter-interruption-queue-${{ inputs.cluster_name }}" \
+            --set controller.resources.requests.cpu=${{ inputs.karpenter_controller_cpu_request }} \
+            --set controller.resources.requests.memory=${{ inputs.karpenter_controller_memory_request }} \
+            --set controller.resources.limits.cpu=${{ inputs.karpenter_controller_cpu_limit }} \
+            --set controller.resources.limits.memory=${{ inputs.karpenter_controller_memory_limit }} \
+            --wait
+
+      - name: Deploy Karpenter NodePool and EC2NodeClass
+        run: |
+          export KARPENTER_NODEPOOL_NAME=${{ inputs.karpenter_nodepool_name }}
+          export KARPENTER_NODECLASS_NAME=${{ inputs.karpenter_nodeclass_name }}
+          export KARPENTER_NODE_ROLE=${{ inputs.karpenter_node_role }}
+          export KARPENTER_INSTANCE_PROFILE=${{ inputs.karpenter_instance_profile }}
+          export KARPENTER_NAMESPACE=${{ inputs.karpenter_namespace }}
+          export CLUSTER_NAME=${{ inputs.cluster_name }}
+          envsubst < ./karpenter/karpenter-resources.yml | kubectl apply -f -
+
+      - name: Verify Karpenter Installation
+        run: |
+          echo "Checking Karpenter controller status..."
+          kubectl get pods -n ${{ inputs.karpenter_namespace }}
+          echo "Checking NodePool..."
+          kubectl get nodepool -n ${{ inputs.karpenter_namespace }}
+          echo "Checking EC2NodeClass..."
+          kubectl get ec2nodeclass -n ${{ inputs.karpenter_namespace }}

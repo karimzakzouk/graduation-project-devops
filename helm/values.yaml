@@ -34,3 +34,15 @@ autoscaling:
   maxReplicas: 10
   targetCPUUtilizationPercentage: 80
   targetMemoryUtilizationPercentage: 80
+
+karpenter:
+  nodepool:
+    name: solar-nodepool
+    capacityTypes: ["spot", "on-demand"]
+    architecture: ["amd64"]
+  nodeclass:
+    name: solar-nodeclass
+    role: "KarpenterNodeRole-solar-system-app-cluster"
+    amiFamily: AmazonLinux2023
+    clusterName: "solar-system-app-cluster"
+    instanceProfile: KarpenterNodeInstanceProfile

@@ -47,3 +47,16 @@ monitoring_namespace = "my-solar-system-app-monitoring"
 argocd_namespace = "my-solar-system-app-argocd"
 
 app_name = "solar-system-app"
+
+# Karpenter Configuration
+karpenter_nodepool_name     = "solar-nodepool"
+karpenter_nodeclass_name    = "solar-nodeclass"
+karpenter_node_role         = "KarpenterNodeRole-solar-system-app-cluster"
+karpenter_instance_profile  = "KarpenterNodeInstanceProfile"
+karpenter_namespace         = "karpenter"
+
+# Karpenter Controller Resource Configuration
+karpenter_controller_cpu_request    = "1"
+karpenter_controller_memory_request = "1Gi"
+karpenter_controller_cpu_limit      = "1"
+karpenter_controller_memory_limit   = "1Gi"

@@ -34,6 +34,11 @@ on:
         required: false
         default: false
         type: boolean
+      skip-karpenter:
+        description: 'Skip Karpenter deployment'
+        required: false
+        default: false
+        type: boolean
       force-all:              # Force all workflows
         description: 'Force run all workflows (ignore path detection)'
         required: false
@@ -77,6 +82,8 @@ jobs:
             infra:
               - 'Terraform/**'
               - '.github/workflows/terraform.yml'
+              - '.github/workflows/karpenter.yml'
+              - 'karpenter/**'
               - '.github/workflows/argocd.yml'
               - 'argocd/application.yml'
               - '.github/workflows/deploy.yml'
@@ -150,14 +157,45 @@ jobs:
       id-token: write
       actions: read
 
-  # ArgoCD - runs after terraform when infra changes or manual dispatch
-  argocd:
-    name: Deploy ArgoCD Applications
+  # Karpenter - runs after terraform when infra changes or manual dispatch
+  karpenter:
+    name: Deploy Karpenter
     needs: [terraform, detect-changes]
     if: |
       !cancelled() &&
-      !inputs.skip-argocd && 
+      !inputs.skip-karpenter && 
       (needs.terraform.result == 'success' || (needs.terraform.result == 'skipped' && inputs.skip-terraform)) && (
+        inputs.force-all || 
+        (github.event_name == 'workflow_dispatch') ||
+        needs.detect-changes.outputs.infra-changed == 'true'
+      )
+    uses: ./.github/workflows/karpenter.yml
+    secrets: inherit
+    with:
+      cluster_name: ${{ needs.terraform.outputs.cluster_name }}
+      karpenter_nodepool_name: ${{ needs.terraform.outputs.karpenter_nodepool_name }}
+      karpenter_nodeclass_name: ${{ needs.terraform.outputs.karpenter_nodeclass_name }}
+      karpenter_node_role: ${{ needs.terraform.outputs.karpenter_node_role }}
+      karpenter_instance_profile: ${{ needs.terraform.outputs.karpenter_instance_profile }}
+      karpenter_namespace: ${{ needs.terraform.outputs.karpenter_namespace }}
+      karpenter_controller_cpu_request: ${{ needs.terraform.outputs.karpenter_controller_cpu_request }}
+      karpenter_controller_memory_request: ${{ needs.terraform.outputs.karpenter_controller_memory_request }}
+      karpenter_controller_cpu_limit: ${{ needs.terraform.outputs.karpenter_controller_cpu_limit }}
+      karpenter_controller_memory_limit: ${{ needs.terraform.outputs.karpenter_controller_memory_limit }}
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      actions: read
+
+  # ArgoCD - runs after karpenter when infra changes or manual dispatch
+  argocd:
+    name: Deploy ArgoCD Applications
+    needs: [terraform, karpenter, detect-changes]
+    if: |
+      !cancelled() &&
+      !inputs.skip-argocd && 
+      (needs.karpenter.result == 'success' || (needs.karpenter.result == 'skipped' && inputs.skip-karpenter)) && (
         inputs.force-all || 
         (github.event_name == 'workflow_dispatch') ||
         needs.detect-changes.outputs.infra-changed == 'true'

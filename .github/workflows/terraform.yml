@@ -21,6 +21,21 @@ on:
       app_name:
         description: "Application name from Terraform outputs"
         value: ${{ jobs.terraform.outputs.app_name }}
+      karpenter_nodepool_name:
+        description: "Karpenter NodePool name from Terraform outputs"
+        value: ${{ jobs.terraform.outputs.karpenter_nodepool_name }}
+      karpenter_nodeclass_name:
+        description: "Karpenter EC2NodeClass name from Terraform outputs"
+        value: ${{ jobs.terraform.outputs.karpenter_nodeclass_name }}
+      karpenter_node_role:
+        description: "Karpenter node IAM role from Terraform outputs"
+        value: ${{ jobs.terraform.outputs.karpenter_node_role }}
+      karpenter_instance_profile:
+        description: "Karpenter instance profile from Terraform outputs"
+        value: ${{ jobs.terraform.outputs.karpenter_instance_profile }}
+      karpenter_namespace:
+        description: "Karpenter namespace from Terraform outputs"
+        value: ${{ jobs.terraform.outputs.karpenter_namespace }}
 
 
 
@@ -40,7 +55,11 @@ jobs:
       app_namespace: ${{ steps.terraform-outputs.outputs.app_namespace }}
       monitoring_namespace: ${{ steps.terraform-outputs.outputs.monitoring_namespace }}  
       argocd_namespace: ${{ steps.terraform-outputs.outputs.argocd_namespace }}          
-      app_name: ${{ steps.terraform-outputs.outputs.app_name }} 
+      app_name: ${{ steps.terraform-outputs.outputs.app_name }}
+      karpenter_nodepool_name: ${{ steps.terraform-outputs.outputs.karpenter_nodepool_name }}
+      karpenter_nodeclass_name: ${{ steps.terraform-outputs.outputs.karpenter_nodeclass_name }}
+      karpenter_node_role: ${{ steps.terraform-outputs.outputs.karpenter_node_role }}
+      karpenter_instance_profile: ${{ steps.terraform-outputs.outputs.karpenter_instance_profile }} 
     
     steps:
       - name: Checkout Repository
@@ -102,6 +121,33 @@ jobs:
           echo "monitoring_namespace=$MONITORING_NAMESPACE" >> $GITHUB_OUTPUT
           echo "argocd_namespace=$ARGOCD_NAMESPACE" >> $GITHUB_OUTPUT
           echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
+          
+          KARPENTER_NODEPOOL_NAME=$(terraform output -raw karpenter_nodepool_name)
+          KARPENTER_NODECLASS_NAME=$(terraform output -raw karpenter_nodeclass_name)
+          KARPENTER_NODE_ROLE=$(terraform output -raw karpenter_node_role)
+          KARPENTER_INSTANCE_PROFILE=$(terraform output -raw karpenter_instance_profile)
+          KARPENTER_NAMESPACE=$(terraform output -raw karpenter_namespace)
+          
+          echo "KARPENTER_NODEPOOL_NAME=$KARPENTER_NODEPOOL_NAME" >> $GITHUB_ENV
+          echo "KARPENTER_NODECLASS_NAME=$KARPENTER_NODECLASS_NAME" >> $GITHUB_ENV
+          echo "KARPENTER_NODE_ROLE=$KARPENTER_NODE_ROLE" >> $GITHUB_ENV
+          echo "KARPENTER_INSTANCE_PROFILE=$KARPENTER_INSTANCE_PROFILE" >> $GITHUB_ENV
+          echo "KARPENTER_NAMESPACE=$KARPENTER_NAMESPACE" >> $GITHUB_ENV
+          
+          echo "karpenter_nodepool_name=$KARPENTER_NODEPOOL_NAME" >> $GITHUB_OUTPUT
+          echo "karpenter_nodeclass_name=$KARPENTER_NODECLASS_NAME" >> $GITHUB_OUTPUT
+          echo "karpenter_node_role=$KARPENTER_NODE_ROLE" >> $GITHUB_OUTPUT
+          echo "karpenter_instance_profile=$KARPENTER_INSTANCE_PROFILE" >> $GITHUB_OUTPUT
+          echo "karpenter_namespace=$KARPENTER_NAMESPACE" >> $GITHUB_OUTPUT
+          KARPENTER_CONTROLLER_CPU_REQUEST=$(terraform output -raw karpenter_controller_cpu_request)
+          KARPENTER_CONTROLLER_MEMORY_REQUEST=$(terraform output -raw karpenter_controller_memory_request)
+          KARPENTER_CONTROLLER_CPU_LIMIT=$(terraform output -raw karpenter_controller_cpu_limit)
+          KARPENTER_CONTROLLER_MEMORY_LIMIT=$(terraform output -raw karpenter_controller_memory_limit)
+          
+          echo "karpenter_controller_cpu_request=$KARPENTER_CONTROLLER_CPU_REQUEST" >> $GITHUB_OUTPUT
+          echo "karpenter_controller_memory_request=$KARPENTER_CONTROLLER_MEMORY_REQUEST" >> $GITHUB_OUTPUT
+          echo "karpenter_controller_cpu_limit=$KARPENTER_CONTROLLER_CPU_LIMIT" >> $GITHUB_OUTPUT
+          echo "karpenter_controller_memory_limit=$KARPENTER_CONTROLLER_MEMORY_LIMIT" >> $GITHUB_OUTPUT
         working-directory: ./Terraform
 
       - name: Set GitHub repository variables
@@ -111,6 +157,11 @@ jobs:
           MONITORING_NAMESPACE=$(terraform output -raw monitoring_namespace)
           ARGOCD_NAMESPACE=$(terraform output -raw argocd_namespace)
           APP_NAME=$(terraform output -raw app_name)
+          KARPENTER_NODEPOOL_NAME=$(terraform output -raw karpenter_nodepool_name)
+          KARPENTER_NODECLASS_NAME=$(terraform output -raw karpenter_nodeclass_name)
+          KARPENTER_NODE_ROLE=$(terraform output -raw karpenter_node_role)
+          KARPENTER_INSTANCE_PROFILE=$(terraform output -raw karpenter_instance_profile)
+          KARPENTER_NAMESPACE=$(terraform output -raw karpenter_namespace)
 
           # Create or update repo variables via GitHub CLI
           gh variable set CLUSTER_NAME --body "$CLUSTER_NAME" --repo $GITHUB_REPOSITORY
@@ -118,6 +169,11 @@ jobs:
           gh variable set MONITORING_NAMESPACE --body "$MONITORING_NAMESPACE" --repo $GITHUB_REPOSITORY
           gh variable set ARGOCD_NAMESPACE --body "$ARGOCD_NAMESPACE" --repo $GITHUB_REPOSITORY
           gh variable set APP_NAME --body "$APP_NAME" --repo $GITHUB_REPOSITORY
+          gh variable set KARPENTER_NODEPOOL_NAME --body "$KARPENTER_NODEPOOL_NAME" --repo $GITHUB_REPOSITORY
+          gh variable set KARPENTER_NODECLASS_NAME --body "$KARPENTER_NODECLASS_NAME" --repo $GITHUB_REPOSITORY
+          gh variable set KARPENTER_NODE_ROLE --body "$KARPENTER_NODE_ROLE" --repo $GITHUB_REPOSITORY
+          gh variable set KARPENTER_INSTANCE_PROFILE --body "$KARPENTER_INSTANCE_PROFILE" --repo $GITHUB_REPOSITORY
+          gh variable set KARPENTER_NAMESPACE --body "$KARPENTER_NAMESPACE" --repo $GITHUB_REPOSITORY
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
         working-directory: ./Terraform
