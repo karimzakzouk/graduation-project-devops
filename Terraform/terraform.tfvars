@@ -13,7 +13,7 @@ public_subnet_cidrs  = ["10.0.4.0/24", "10.0.5.0/24", "10.0.6.0/24"]
 cluster_name    = "solar-system-app-cluster"  # Changed from otel-cluster
 cluster_version = "1.30"
 
-
+ 
 # Node Groups Configuration
 node_groups = {
   # Development/Testing - Small instances
