@@ -9,19 +9,20 @@ module "vpc" {
 }
 
 module "eks" {
-  source = "./modules/eks"
-  cluster_name = var.cluster_name
-  cluster_version = var.cluster_version
-  vpc_id = module.vpc.vpc_id
+  source             = "./modules/eks"
+  cluster_name       = var.cluster_name
+  cluster_version    = var.cluster_version
+  vpc_id             = module.vpc.vpc_id
   cluster_subnet_ids = concat(module.vpc.private_subnet_ids, module.vpc.public_subnet_ids)
-  node_subnet_ids = module.vpc.private_subnet_ids
-  node_groups = var.node_groups
+  node_subnet_ids    = module.vpc.private_subnet_ids
+  node_groups        = var.node_groups
+  depends_on         = [module.vpc]
 }
 resource "aws_eks_addon" "metrics_server" {
-  cluster_name             = module.eks.cluster_name
-  depends_on = [module.eks]
-  addon_name               = "metrics-server"
-  addon_version            = null
+  cluster_name                = module.eks.cluster_name
+  addon_name                  = "metrics-server"
+  addon_version               = null
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "OVERWRITE"
+  depends_on                  = [module.eks]
 }
