@@ -1,82 +1,109 @@
-# 🌌 Solar System - Enterprise DevOps Application
-
+🌌 Solar System - Enterprise DevOps Application
 A comprehensive Python web application demonstrating enterprise-grade DevOps practices with a complete CI/CD pipeline, Infrastructure as Code, GitOps implementation, and comprehensive monitoring.
 
-[![Python CI](https://github.com/KarimZakzouk/Graduation-Project-Devops/actions/workflows/ci.yml/badge.svg)](https://github.com/KarimZakzouk/Graduation-Project-Devops/actions/workflows/ci.yml)
-[![Docker Build](https://github.com/KarimZakzouk/Graduation-Project-Devops/actions/workflows/docker.yml/badge.svg)](https://github.com/KarimZakzouk/Graduation-Project-Devops/actions/workflows/docker.yml)
-[![Terraform](https://github.com/KarimZakzouk/Graduation-Project-Devops/actions/workflows/terraform.yml/badge.svg)](https://github.com/KarimZakzouk/Graduation-Project-Devops/actions/workflows/terraform.yml)
+🚀 Project Overview
+This project showcases a Solar System visualization web application built with modern DevOps practices, featuring:
 
---- 
+Interactive Solar System UI with planet data and animations
 
-## 🚀 Project Overview
+Python backend with MongoDB integration
 
-This project showcases a **Solar System visualization web application** built with modern DevOps practices, featuring:
+Complete CI/CD pipeline with GitHub Actions
 
-- **Interactive Solar System UI** with planet data and animations
-- **Python backend** with MongoDB integration
-- **Complete CI/CD pipeline** with GitHub Actions
-- **Infrastructure as Code** using Terraform and AWS EKS
-- **GitOps deployment** with ArgoCD for automated application delivery
-- **Comprehensive monitoring** with Prometheus and Grafana
-- **Containerized deployment** with Docker and Kubernetes
-- **Multi-registry container support** (Docker Hub + GitHub Container Registry)
+Infrastructure as Code using Terraform and AWS EKS
 
----
+GitOps deployment with ArgoCD for automated application delivery
 
+Comprehensive monitoring with Prometheus and Grafana
 
+Containerized deployment with Docker and Kubernetes
 
-## 🏗️ Project Architecture Diagram
+Multi-registry container support (Docker Hub + GitHub Container Registry)
 
+🏗️ Project Architecture Diagram
 You can view the architecture diagram below for a visual overview of the system design:
 
 <p align="center">
-  <img src="assets/Diagram.gif" alt="Project Architecture Diagram" width="600" />
+<img src="assets/Diagram.gif" alt="Project Architecture Diagram" width="600" />
 </p>
 
----
+🛠️ Technology Stack
+Application Stack
+Frontend: HTML5, CSS3, JavaScript (Interactive Solar System UI)
 
-## 🛠️ Technology Stack
+Backend: Python
 
-### **Application Stack**
-- **Frontend**: HTML5, CSS3, JavaScript (Interactive Solar System UI)
-- **Backend**: Python
-- **Database**: MongoDB with Mongoose ODM
-- **Testing**: pytest, NYC (Code Coverage)
+Database: MongoDB
 
-### **DevOps & Infrastructure**
-- **Containerization**: Docker, Multi-stage builds
-- **Orchestration**: Kubernetes, Helm Charts
-- **Cloud Provider**: AWS (EKS, VPC, Load Balancers, S3)
-- **Infrastructure as Code**: Terraform with modular design
-- **CI/CD**: GitHub Actions with workflow orchestration
-- **GitOps**: ArgoCD for automated deployments and drift detection
-- **Container Registry**: Docker Hub + GitHub Container Registry
-- **Monitoring & Observability**: 
-  - **Prometheus**: Metrics collection and alerting
-  - **Grafana**: Visualization dashboards and analytics
-  - Built-in health checks and structured logging
+Testing: pytest
 
----
+DevOps & Infrastructure
+Containerization: Docker, Multi-stage builds
 
+Orchestration: Kubernetes, Helm Charts
 
-## 🎥 Project Architecture Diagram
+Cloud Provider: AWS (EKS, VPC, Load Balancers, S3)
 
-You can watch the architecture diagram video below for a visual overview of the system design:
+Infrastructure as Code: Terraform with modular design
 
-<p align="center">
-  <video width="600" controls>
-    <source src="assets/Diagram.mp4" type="video/mp4">
-    Your browser does not support the video tag.
-  </video>
-</p>
+CI/CD: GitHub Actions with workflow orchestration
 
----
+GitOps: ArgoCD for automated deployments and drift detection
 
-## 📁 Project Structure
+Container Registry: Docker Hub + GitHub Container Registry
 
-```
+Monitoring & Observability:
+
+Prometheus: Metrics collection and alerting
+
+Grafana: Visualization dashboards and analytics
+
+Built-in health checks and structured logging
+
+✅ Prerequisites
+Before you begin, ensure you have the following tools installed and configured:
+
+AWS CLI: Configured with appropriate permissions to create EKS, VPC, and S3 resources.
+
+Terraform: To manage and provision the cloud infrastructure.
+
+kubectl: To interact with the Kubernetes cluster.
+
+Helm: To manage Kubernetes applications.
+
+Docker: For building and running containers locally.
+
+🚀 Getting Started
+To get this project up and running, follow these steps:
+
+Clone the Repository
+
+git clone [https://github.com/KarimZakzouk/Graduation-Project-Devops.git](https://github.com/KarimZakzouk/Graduation-Project-Devops.git)
+cd Graduation-Project-Devops
+
+Configure Infrastructure Backend
+Update the infrastructure/2-backend.tf file with your S3 bucket details for Terraform remote state storage.
+
+Deploy the Infrastructure
+Navigate to the Terraform directory and initialize the deployment.
+
+cd infrastructure/
+terraform init
+terraform apply -auto-approve
+
+This will provision the VPC, EKS cluster, and deploy ArgoCD and the monitoring stack.
+
+Configure kubectl
+After Terraform completes, it will output the command to configure kubectl. Run that command to connect to your new EKS cluster.
+
+Deploy the Application
+The CI/CD pipeline handles this automatically. To deploy manually, you can apply the ArgoCD application manifest:
+
+kubectl apply -f argocd/applications/solar-system-app.yaml
+
+📁 Project Structure
 ├── 📱 Application Code
-│   ├── app.py                 # Main Python application
+│   ├── app.py                # Main Python application
 │   ├── app-test.py           # Test suites
 │   ├── index.html            # Frontend UI
 │   └── Dockerfile            # Container definition
@@ -90,138 +117,121 @@ You can watch the architecture diagram video below for a visual overview of the 
 │
 ├── 🏗️ Infrastructure (Terraform)
 │   ├── 0-versions.tf         # Provider versions
-│   ├── 1-provider.tf         # AWS & K8s providers
-│   ├── 2-backend.tf          # Remote state backend
-│   ├── 3-main.tf            # Main infrastructure
-│   ├── 4-variables.tf       # Input variables
-│   ├── 5-outputs.tf         # Output values
+│   ├── ...                   # Main infrastructure files
 │   └── modules/
-│       ├── vpc/             # VPC module
-│       ├── eks/             # EKS cluster module
-│       ├── monitoring/      # Prometheus & Grafana setup
-│       └── argocd/          # ArgoCD installation
+│       ├── vpc/              # VPC module
+│       ├── eks/              # EKS cluster module
+│       ├── monitoring/       # Prometheus & Grafana setup
+│       └── argocd/           # ArgoCD installation
 │
 ├── 📊 Monitoring & GitOps
 │   ├── monitoring/
-│   │   ├── prometheus/      # Prometheus configuration
-│   │   ├── grafana/        # Grafana dashboards
-│   │   └── alerting/       # Alert rules & notifications
+│   │   ├── prometheus/       # Prometheus configuration
+│   │   └── grafana/          # Grafana dashboards
 │   └── argocd/
-│       ├── applications/    # ArgoCD application definitions
-│       └── projects/       # ArgoCD project configurations
+│       └── applications/     # ArgoCD application definitions
 │
 ├── 🔄 CI/CD Workflows
 │   └── .github/workflows/
-│       ├── main-pipeline.yml    # Orchestrator workflow
-│       ├── ci.yml              # Test & quality checks
-│       ├── docker.yml          # Container build & push
-│       ├── terraform.yml       # Infrastructure deployment
-│       ├── deploy.yml          # Kubernetes deployment
-│       └── destroy.yml         # Resource cleanup
+│       ├── main-pipeline.yml # Orchestrator workflow
+│       ├── ci.yml            # Test & quality checks
+│       ├── docker.yml        # Container build & push
+│       ├── terraform.yml     # Infrastructure deployment
+│       └── deploy.yml        # Kubernetes deployment
 │
 └── 🖼️ Static Assets
-    └── static/                 # Planet images & backgrounds
-```
+    └── static/               # Planet images & backgrounds
 
----
+🔄 DevOps Pipeline
+This project is configured with a robust CI/CD pipeline using GitHub Actions to automate testing, building, and deployment.
 
-## 🔄 DevOps Pipeline
+1. Continuous Integration (CI)
+Code Quality: Automated testing with pytest.
 
-### **1. Continuous Integration (CI)**
-- **Code Quality**: Automated testing with pytest
-- **Code Coverage**: NYC coverage reports (85% threshold)
-- **Security Scanning**: Container vulnerability checks
-- **Dependency Management**: Automated dependency updates
+Code Coverage: Coverage reports to maintain standards.
 
-### **2. Continuous Deployment (CD)**
-- **Multi-Registry Push**: Docker Hub + GitHub Container Registry
-- **Infrastructure Deployment**: Terraform-managed AWS EKS
-- **GitOps Deployment**: ArgoCD automated sync and self-healing
-- **Environment Promotion**: Automated deployment pipeline
+Security Scanning: Container vulnerability checks.
 
-### **3. GitHub Actions Workflows**
+2. Continuous Deployment (CD)
+Multi-Registry Push: Pushes container images to Docker Hub & GitHub Container Registry.
 
-#### **Main Pipeline** (`main-pipeline.yml`)
-- Orchestrates all sub-workflows
-- Configurable skip options for development
-- Environment-based deployments
+Infrastructure Deployment: Terraform-managed AWS EKS deployment.
 
-#### **CI Workflow** (`ci.yml`)
-- Unit & integration tests
-- Code coverage reporting
-- Quality gate enforcement
+GitOps Deployment: ArgoCD ensures the deployed state matches the Git repository.
 
-#### **Docker Workflow** (`docker.yml`)
-- Multi-architecture builds
-- Security scanning
-- Multi-registry publishing
+3. GitHub Actions Workflows
+Main Pipeline (main-pipeline.yml)
+Orchestrates all sub-workflows (CI, Docker, Terraform, etc.).
 
-#### **Terraform Workflow** (`terraform.yml`)
-- Infrastructure planning & deployment
-- State management with S3 backend
-- AWS EKS cluster provisioning
-- ArgoCD and monitoring stack deployment
+Allows configurable skips for faster development cycles.
 
-#### **Deploy Workflow** (`deploy.yml`)
-- Kubernetes secret management
-- Helm chart deployments
-- ArgoCD application sync
+CI Workflow (ci.yml)
+Runs unit tests and code coverage.
 
----
+Enforces quality gates before allowing code to be merged.
 
-## 🎯 GitOps with ArgoCD
+Docker Workflow (docker.yml)
+Builds multi-architecture container images.
 
-### **ArgoCD Implementation**
-- **Declarative GitOps**: Git repository as single source of truth
-- **Automated Sync**: Continuous monitoring and deployment of changes
-- **Self-Healing**: Automatic correction of configuration drift
-- **Rollback Capabilities**: Easy revert to previous application states
-- **Multi-Environment Support**: Separate configurations for dev/staging/prod
-- **RBAC Integration**: Role-based access control for team collaboration
+Scans images for vulnerabilities and pushes to multiple registries.
 
-### **ArgoCD Features Used**
-- **Application Sets**: Manage multiple applications across environments
-- **Sync Policies**: Automated and manual sync strategies
-- **Health Checks**: Application health monitoring and reporting
-- **Resource Hooks**: Pre/post deployment hooks for complex workflows
-- **Notifications**: Integration with Slack/email for deployment status
+Terraform Workflow (terraform.yml)
+Manages infrastructure provisioning and updates via IaC.
 
----
+Uses an S3 backend for secure state management.
 
-## 📊 Monitoring & Observability
+🎯 GitOps with ArgoCD
+ArgoCD Implementation
+Declarative GitOps: The Git repository serves as the single source of truth for all deployments.
 
-### **Prometheus Stack**
-- **Metrics Collection**: Application, infrastructure, and Kubernetes metrics
-- **Service Discovery**: Automatic discovery of monitoring targets
-- **Alerting Rules**: Custom alerts for application and infrastructure health
-- **Data Retention**: Configurable metric storage and cleanup policies
-- **High Availability**: Multi-replica Prometheus setup with persistent storage
+Automated Sync: ArgoCD continuously monitors the Git repo and automatically syncs any changes to the cluster.
 
-### **Grafana Dashboards**
-- **Application Metrics**: Request rates, response times, error rates
-- **Infrastructure Monitoring**: Node CPU, memory, disk, and network usage
-- **Kubernetes Cluster**: Pod status, resource utilization, cluster health
-- **Business Metrics**: User interactions, feature usage analytics
-- **Custom Dashboards**: Solar system specific metrics and visualizations
+Self-Healing: Automatically corrects any configuration drift to ensure the live state matches the desired state in Git.
 
-### **Key Monitoring Features**
-- **Real-time Dashboards**: Live metrics visualization
-- **Alerting**: Slack/email notifications for critical issues
-- **Log Aggregation**: Centralized logging with structured format
-- **Distributed Tracing**: Request flow tracking across services
-- **SLA Monitoring**: Service level objectives tracking
+Rollback Capabilities: Easily revert to previous stable application states with a single command or click.
 
+📊 Monitoring & Observability
+Prometheus Stack
+Metrics Collection: Gathers detailed metrics from the application, infrastructure, and Kubernetes.
 
----
+Service Discovery: Automatically discovers new services and pods to monitor.
 
-## ☸️ Kubernetes Infrastructure
+Alerting Rules: Pre-configured alerts for critical application and infrastructure issues.
 
-### **AWS EKS Cluster**
-- **Cluster Version**: Kubernetes 1.30
-- **Node Groups**: Auto-scaling worker nodes (t3.medium instances)
-- **Networking**: VPC with public/private subnets across multiple AZs
+Grafana Dashboards
+Application Metrics: Dashboards for request rates, response times, and error rates.
 
-### **Application Deployment**
-- **Helm Charts**: Templated Kubernetes manifests with values override
-- **Secrets**: Environment configuration and sensitive data
-- **Services**: LoadBalancer for external access with health checks
+Infrastructure Monitoring: Visualizes node CPU, memory, disk, and network usage.
+
+Kubernetes Cluster: Monitors pod status, resource utilization, and overall cluster health.
+
+☸️ Kubernetes Infrastructure
+AWS EKS Cluster
+Cluster Version: Kubernetes 1.30
+
+Node Groups: Auto-scaling worker nodes (t3.medium instances) to handle variable loads.
+
+Networking: Deployed in a custom VPC with public/private subnets across multiple availability zones for high availability.
+
+Application Deployment
+Helm Charts: Uses Helm for templating Kubernetes manifests, allowing for easy configuration and repeatable deployments.
+
+Secrets Management: Manages sensitive data like API keys and credentials securely within the cluster.
+
+Services: Exposes the application externally using a LoadBalancer with integrated health checks.
+
+🤝 Contributing
+Contributions are welcome! If you have suggestions for improvement, please open an issue or submit a pull request.
+
+Fork the Project
+
+Create your Feature Branch (git checkout -b feature/AmazingFeature)
+
+Commit your Changes (git commit -m 'Add some AmazingFeature')
+
+Push to the Branch (git push origin feature/AmazingFeature)
+
+Open a Pull Request
+
+📜 License
+This project is licensed under the MIT License. See the LICENSE file for details.
