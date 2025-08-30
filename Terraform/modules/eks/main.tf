@@ -9,7 +9,7 @@ resource "aws_eks_cluster" "main" {
   }
 
   vpc_config {
-    subnet_ids = var.subnet_ids
+    subnet_ids = var.cluster_subnet_ids  # Changed from var.subnet_ids
   }
 
   depends_on = [
@@ -93,8 +93,7 @@ resource "aws_eks_node_group" "main" {
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = each.key
   node_role_arn   = aws_iam_role.node.arn
-  subnet_ids      = var.subnet_ids
-
+  subnet_ids = var.node_subnet_ids  # Changed from var.subnet_ids
   scaling_config {
     desired_size = each.value.scaling_config.desired_size
     max_size     = each.value.scaling_config.max_size

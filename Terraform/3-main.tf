@@ -9,18 +9,14 @@ module "vpc" {
 }
 
 module "eks" {
-  source = "./modules/eks" 
-
-  cluster_name    = var.cluster_name
+  source = "./modules/eks"
+  cluster_name = var.cluster_name
   cluster_version = var.cluster_version
-  vpc_id          = module.vpc.vpc_id
-  subnet_ids      = module.vpc.private_subnet_ids
-  node_groups     = var.node_groups
-
-
+  vpc_id = module.vpc.vpc_id
+  cluster_subnet_ids = concat(module.vpc.private_subnet_ids, module.vpc.public_subnet_ids)
+  node_subnet_ids = module.vpc.private_subnet_ids
+  node_groups = var.node_groups
 }
-
-# EKS Addon: metrics-server (enables HPA CPU/memory metrics)
 resource "aws_eks_addon" "metrics_server" {
   cluster_name             = module.eks.cluster_name
   depends_on = [module.eks]

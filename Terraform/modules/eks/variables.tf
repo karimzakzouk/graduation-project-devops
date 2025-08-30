@@ -13,11 +13,15 @@ variable "vpc_id" {
   type        = string
 }
 
-variable "subnet_ids" {
-  description   = "Subnets IDS"
-  type          = list(string)
+variable "cluster_subnet_ids" {
+  description = "List of subnet IDs for EKS cluster (public + private)"
+  type        = list(string)
 }
 
+variable "node_subnet_ids" {
+  description = "List of subnet IDs for EKS node groups (private only)"
+  type        = list(string)
+}
 variable "node_groups" {
   description   = "EKS node groups configuration"
   type          = map(object({
