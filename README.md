@@ -1,6 +1,6 @@
 # 🌌 Solar System - Enterprise DevOps Application
 
-<div align="center">
+<div align="center"> 
 
 ![Solar System Banner](https://img.shields.io/badge/Solar%20System-DevOps%20Application-blue?style=for-the-badge&logo=rocket)
 
