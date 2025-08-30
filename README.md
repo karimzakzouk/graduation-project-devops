@@ -145,13 +145,22 @@ You can view the architecture diagram below for a visual overview of the system 
 - ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white) 
   - Container building and testing
 
+</td>
+<td width="33%">
+
 ### 🚀 **Scalability Tools**
 - ![Karpenter](https://img.shields.io/badge/Karpenter-0F1689?style=flat-square&logo=karpenter&logoColor=white) 
   - Auto-scaling and resource management
 
+</td>
+<td width="33%">
+
 ### 📥 **Deployment Tools**
 - ![ArgoCD](https://img.shields.io/badge/ArgoCD-EF7B4D?style=flat-square&logo=argo&logoColor=white) 
   - GitOps deployment and drift detection
+
+</td>
+<td width="33%">
 
 ### 📊 **Monitoring Tools**
 - ![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=flat-square&logo=prometheus&logoColor=white) 
