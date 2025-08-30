@@ -146,6 +146,8 @@ You can view the architecture diagram below for a visual overview of the system 
   - Container building and testing
 
 </td>
+</tr>
+<tr>
 <td width="33%">
 
 ### 🚀 **Scalability Tools**
