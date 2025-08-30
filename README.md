@@ -1,195 +1,191 @@
-# 🌌 Solar System - Enterprise DevOps Application
+# 🌌 Solar System DevOps Application
 
 <div align="center">
 
-![Solar System](https://img.shields.io/badge/Solar%20System-DevOps%20Platform-blue?style=for-the-badge&logo=rocket)
+![Solar System](https://img.shields.io/badge/Solar%20System-DevOps%20App-blue?style=for-the-badge&logo=rocket)
 
-[![CI/CD](https://img.shields.io/badge/GitHub%20Actions-Pipeline-2088FF?style=flat-square&logo=github-actions)](https://github.com/features/actions)
-[![Kubernetes](https://img.shields.io/badge/Kubernetes-1.30-326CE5?style=flat-square&logo=kubernetes)](https://kubernetes.io/)
-[![Terraform](https://img.shields.io/badge/Terraform-IaC-623CE4?style=flat-square&logo=terraform)](https://terraform.io/)
-[![ArgoCD](https://img.shields.io/badge/ArgoCD-GitOps-EF7B4D?style=flat-square&logo=argo)](https://argoproj.github.io/cd/)
-
-**Interactive Solar System web app with enterprise-grade DevOps practices**
+**Enterprise-grade Python web application with complete DevOps pipeline**
 
 </div>
 
 ---
 
-## 🚀 Overview
+## 🚀 **What This Project Does**
 
-Production-ready Solar System visualization platform demonstrating modern DevOps practices with complete automation, monitoring, and scalability.
+**Interactive Solar System web app** that demonstrates modern DevOps practices in production.
 
-**Key Features:**
-- 🪐 Interactive planet data visualization with Flask + MongoDB
-- 🔄 Smart CI/CD pipeline with change detection
-- 🏗️ AWS EKS infrastructure with Terraform
-- 🚀 GitOps deployment with ArgoCD
-- 📊 Complete monitoring stack (Prometheus + Grafana)
-- ⚡ Auto-scaling with Karpenter
-
-### 🏗️ Architecture
-
-<p align="center">
-<img src="assets/Diagram.gif" alt="Architecture Diagram" width="600" />
-</p>
+### **🎯 Key Features**
+- 🪐 **Solar System Visualization** - Interactive planets with real data
+- 🐍 **Python Backend** - Flask API with MongoDB database  
+- 📱 **Responsive Frontend** - Modern HTML/CSS/JavaScript interface
+- 🔄 **Complete CI/CD** - Automated testing, building, and deployment
+- ☸️ **Kubernetes Deployment** - AWS EKS cluster with auto-scaling
+- 🚀 **GitOps** - ArgoCD for automated deployments
+- 📊 **Monitoring** - Prometheus + Grafana dashboards
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ **Technology Stack**
 
-<table>
-<tr>
-<td width="50%">
-
-### 📱 Application
+### **Application**
 - **Frontend:** HTML5, CSS3, JavaScript
-- **Backend:** Python Flask 2.3.3
-- **Database:** MongoDB with PyMongo
+- **Backend:** Python Flask
+- **Database:** MongoDB
 - **Testing:** pytest with coverage
-- **Monitoring:** Prometheus metrics
 
-</td>
-<td width="50%">
-
-### 🏗️ Infrastructure  
-- **Cloud:** AWS EKS, VPC, S3
-- **IaC:** Terraform with modular design
-- **Containers:** Docker + Kubernetes + Helm
-- **GitOps:** ArgoCD for automated deployment
-- **Auto-scaling:** Karpenter for dynamic nodes
-
-</td>
-</tr>
-</table>
+### **DevOps Infrastructure**  
+- **Containers:** Docker with multi-stage builds
+- **Orchestration:** Kubernetes (AWS EKS)
+- **Infrastructure:** Terraform (AWS VPC, EKS, Load Balancers)
+- **CI/CD:** GitHub Actions workflows
+- **GitOps:** ArgoCD for deployment automation
+- **Monitoring:** Prometheus metrics + Grafana dashboards
+- **Scaling:** Karpenter for auto-scaling nodes
 
 ---
 
-## ✅ Prerequisites
+## 📋 **Prerequisites**
 
-- **AWS CLI** with EKS/VPC permissions
-- **Terraform** v1.5.7+
-- **kubectl** and **Helm** v3.14+
-- **Docker** for local testing
-
-**Required Secrets:**
-`AWS_ACCOUNT_ID`, `DOCKER_USERNAME`, `DOCKER_TOKEN`, `MONGO_URI`, `MONGO_USERNAME`, `MONGO_PASSWORD`, `GRAFANA_ADMIN_PASSWORD`, `PAT_GITHUB`, `SONAR_TOKEN`
+**Required tools:**
+- AWS CLI (configured with permissions)
+- Terraform
+- kubectl
+- Helm
+- Docker
 
 ---
 
-## 🚀 Quick Start
+## 🚀 **Quick Start**
 
-### 1. **Clone & Setup**
+### **1. Clone Repository**
 ```bash
-git clone https://github.com/KarimZakzouk/Graduation-Project-Devops.git
-cd Graduation-Project-Devops
+git clone https://github.com/karimzakzouk/graduation-project-devops.git
+cd graduation-project-devops
 ```
 
-### 2. **Configure Backend**
-Update `infrastructure/2-backend.tf` with your S3 bucket for Terraform state.
+### **2. Configure Terraform Backend**
+Update `Terraform/2-backend.tf` with your S3 bucket details.
 
-### 3. **Deploy via GitHub Actions**
-- Go to **Actions** → **Solar System - Main Pipeline** → **Run workflow**
-- Or deploy manually:
+### **3. Deploy Infrastructure**
 ```bash
-cd Terraform/
-terraform init && terraform apply -auto-approve
-aws eks update-kubeconfig --name solar-system-app-cluster --region us-east-1
-kubectl apply -f argocd/applications/
+cd infrastructure/
+terraform init
+terraform apply -auto-approve
+```
+*Creates: VPC, EKS cluster, ArgoCD, monitoring stack*
+
+### **4. Configure kubectl**
+Run the kubectl command from Terraform output to connect to your cluster.
+
+### **5. Deploy Application**
+```bash
+kubectl apply -f argocd/application.yaml
 ```
 
 ---
 
-## 🔄 CI/CD Pipeline
-
-### **Smart Multi-Workflow Architecture**
-
-- **🎯 Main Pipeline** - Orchestrates all workflows with change detection
-- **🧪 CI Workflow** - Multi-platform testing (Python 3.10-3.12) + SonarCloud
-- **🐳 Docker Workflow** - Multi-registry builds with testing
-- **🏗️ Terraform Workflow** - AWS infrastructure deployment
-- **⚡ Karpenter Workflow** - Auto-scaling node provisioner
-- **🚀 ArgoCD Workflow** - GitOps controller setup
-- **📊 Monitoring Workflow** - Prometheus/Grafana stack
-- **🌐 Endpoints Workflow** - Service discovery and URLs
-
-**Features:**
-- Intelligent change detection (app vs infrastructure)
-- Manual workflow control with skip options
-- Multi-registry container deployment
-- Automated Helm chart updates
-- Complete infrastructure teardown capability
-
----
-
-## 🎯 GitOps with ArgoCD
-
-- **📋 Declarative:** Git as single source of truth
-- **🔄 Automated Sync:** Real-time cluster synchronization  
-- **🛡️ Self-Healing:** Automatic drift correction
-- **↩️ Easy Rollbacks:** One-click version recovery
-
-**Applications Managed:**
-- Solar System app (via separate Helm repo)
-- Monitoring stack (kube-prometheus-stack)
-
----
-
-## 📊 Monitoring & Access
-
-### **Service Endpoints:**
-- **🌌 Solar System App:** `http://{app-lb}/`
-- **🚀 ArgoCD:** `http://{argocd-lb}/`
-- **📊 Prometheus:** `http://{nginx-lb}/prometheus`
-- **📈 Grafana:** `http://{nginx-lb}/grafana`
-- **🚨 AlertManager:** `http://{nginx-lb}/alertmanager`
-
-### **Default Credentials:**
-- **ArgoCD:** admin / `{auto-generated}`
-- **Grafana:** admin / `{from secrets}`
-
----
-
-## 📁 Key Files
+## 📁 **Project Structure**
 
 ```
-├── app.py                    # Flask app with MongoDB & metrics
-├── index.html                # Interactive Solar System UI
-├── Dockerfile               # Alpine-based container
-├── helm/                    # Kubernetes manifests & values
-├── Terraform/               # AWS infrastructure modules
-├── .github/workflows/       # 8 specialized CI/CD workflows
-│   ├── main-pipeline.yml     # Orchestrator workflow
-│   ├── ci.yml                # Test & quality checks
-│   ├── docker.yml            # Container build & push
-│   ├── terraform.yml         # Infrastructure deployment
-│   ├── karpenter.yml         # Auto-scaling provisioner
-│   ├── argocd.yml            # GitOps controller setup
-│   ├── monitoring.yml        # Observability stack deployment
-│   ├── deploy.yml            # Kubernetes application deployment
-│   ├── endpoints.yml         # Service discovery & reporting
-│   └── destroy.yml           # Infrastructure cleanup
-├── argocd/                  # GitOps application definitions
-└── karpenter/               # Auto-scaling configurations
+├── 📱 app.py, index.html, Dockerfile    # Application code
+├── ☸️ helm/                            # Kubernetes manifests
+├── 🏗️ infrastructure/                  # Terraform modules
+├── 🚀 argocd/                          # GitOps configurations  
+├── 🔄 .github/workflows/               # CI/CD pipelines
+└── 🖼️ static/                          # Assets and images
 ```
 
 ---
 
-## 🤝 Contributing
+## 🔄 **DevOps Pipeline**
+
+### **Automated Workflows**
+1. **🧪 CI Pipeline** - Code testing, quality checks, security scanning
+2. **🐳 Docker Build** - Multi-arch container images with vulnerability scanning  
+3. **🏗️ Infrastructure** - Terraform deployment of AWS resources
+4. **⚡ Auto-scaling** - Karpenter provisioner for dynamic node management
+5. **🚀 GitOps** - ArgoCD setup and application deployment
+6. **📊 Monitoring** - Prometheus and Grafana stack deployment
+
+### **Key Pipeline Features**
+- **✅ Quality Gates** - Automated testing and code coverage
+- **🔒 Security Scanning** - Container vulnerability detection
+- **📦 Multi-Registry Push** - Docker Hub + GitHub Container Registry
+- **🎯 Smart Triggers** - Conditional workflow execution
+- **⚡ Parallel Execution** - Optimized build times
+
+---
+
+## 🚀 **GitOps with ArgoCD**
+
+**ArgoCD provides:**
+- **📋 Declarative Deployments** - Git as single source of truth
+- **🔄 Automatic Sync** - Continuous monitoring and deployment
+- **🛡️ Self-Healing** - Automatic drift correction
+- **↩️ Easy Rollbacks** - One-click revert to previous versions
+- **👀 Visibility** - Real-time deployment status and history
+
+---
+
+## 📊 **Monitoring & Observability**
+
+### **Prometheus Stack**
+- **📊 Metrics Collection** - Application, infrastructure, and Kubernetes metrics
+- **🎯 Service Discovery** - Automatic target detection
+- **🚨 Alert Rules** - Proactive issue detection
+
+### **Grafana Dashboards**
+- **📱 Application Metrics** - Request rates, response times, errors
+- **🖥️ Infrastructure Monitoring** - CPU, memory, disk, network usage  
+- **☸️ Kubernetes Cluster** - Pod status, resource utilization
+
+---
+
+## ☸️ **Kubernetes Infrastructure**
+
+### **AWS EKS Cluster**
+- **📦 Version:** Kubernetes 1.30
+- **🖥️ Node Groups:** Auto-scaling t3.medium instances
+- **🌐 Networking:** Custom VPC with multi-AZ deployment
+- **🔧 Management:** Helm charts for templated deployments
+- **🔐 Security:** Proper RBAC and secrets management
+
+---
+
+## 🤝 **Contributing**
+
+**Want to contribute?**
 
 1. **Fork** the repository
 2. **Create** feature branch: `git checkout -b feature/amazing-feature`
 3. **Commit** changes: `git commit -m 'Add amazing feature'`
-4. **Push** to branch: `git push origin feature/amazing-feature`
-5. **Open** Pull Request
+4. **Push** branch: `git push origin feature/amazing-feature`
+5. **Open** a Pull Request
+
+---
+
+## 📚 **What You'll Learn**
+
+This project demonstrates:
+
+- **🏗️ Infrastructure as Code** with Terraform
+- **🔄 CI/CD Pipeline Design** with GitHub Actions
+- **☸️ Kubernetes Orchestration** on AWS EKS
+- **🚀 GitOps Implementation** with ArgoCD
+- **📊 Monitoring & Alerting** with Prometheus/Grafana
+- **🐳 Container Best Practices** with Docker
+- **⚡ Auto-scaling Strategies** with Karpenter
+- **🛡️ Security Integration** throughout the pipeline
 
 ---
 
 <div align="center">
 
-### 🌟 **Enterprise DevOps Excellence**
+## ⭐ **Star This Repository If You Found It Helpful!**
 
-![Built with DevOps](https://img.shields.io/badge/Built%20with-DevOps%20Excellence-success?style=for-the-badge)
+**Built with ❤️ for DevOps Excellence**
 
-**⭐ Star this repo if you found it helpful!**
+![Made with Love](https://img.shields.io/badge/Made%20with-❤️-red?style=for-the-badge)
+![DevOps](https://img.shields.io/badge/DevOps-Excellence-blue?style=for-the-badge)
 
 </div>
