@@ -9,6 +9,11 @@
 [![Terraform](https://img.shields.io/badge/Terraform-Infrastructure-purple?style=flat-square&logo=terraform)](https://terraform.io/)
 [![AWS](https://img.shields.io/badge/AWS-Cloud%20Provider-orange?style=flat-square&logo=amazon-aws)](https://aws.amazon.com/)
 [![ArgoCD](https://img.shields.io/badge/ArgoCD-GitOps-green?style=flat-square&logo=argo)](https://argoproj.github.io/cd/)
+[![Karpenter](https://img.shields.io/badge/Karpenter-Kubernetes%20Orchestrator-blue?style=flat-square&logo=karpenter)](https://karpenter.sh/)
+[![Prometheus](https://img.shields.io/badge/Prometheus-Monitoring-blue?style=flat-square&logo=prometheus)](https://prometheus.io/)
+[![Grafana](https://img.shields.io/badge/Grafana-Monitoring-blue?style=flat-square&logo=grafana)](https://grafana.com/)
+[![Helm](https://img.shields.io/badge/Helm-Kubernetes%20Package%20Manager-blue?style=flat-square&logo=helm)](https://helm.sh/)
+[![Docker](https://img.shields.io/badge/Docker-Container%20Platform-blue?style=flat-square&logo=docker)](https://docker.com/)
 
 **A comprehensive Python web application demonstrating enterprise-grade DevOps practices with a complete CI/CD pipeline, Infrastructure as Code, GitOps implementation, and comprehensive monitoring.**
 
@@ -28,7 +33,6 @@ This project showcases a **Solar System visualization web application** built wi
 - 🪐 Interactive Solar System UI with planet data and animations
 - 🐍 Python backend with MongoDB integration
 - 📱 Responsive web interface with modern design
-
 </td>
 <td width="50%">
 
@@ -37,6 +41,8 @@ This project showcases a **Solar System visualization web application** built wi
 - 🏗️ Infrastructure as Code using Terraform and AWS EKS
 - 🚀 GitOps deployment with ArgoCD for automated delivery
 - 📊 Comprehensive monitoring with Prometheus and Grafana
+- 📦 Containerization with Docker and Kubernetes
+- 🚀 Scalability using Karpenter
 
 </td>
 </tr>
@@ -86,6 +92,14 @@ You can view the architecture diagram below for a visual overview of the system 
 | **📦 Container Registry** | ![Docker Hub](https://img.shields.io/badge/Docker%20Hub-2496ED?style=flat-square&logo=docker&logoColor=white) + ![GitHub](https://img.shields.io/badge/GitHub%20Container%20Registry-181717?style=flat-square&logo=github&logoColor=white) |
 
 </details>
+<details>
+<summary><b>🚀 Scalability & Auto-scaling</b></summary>
+
+| Tool | Purpose |
+|------|---------|
+| ![Karpenter](https://img.shields.io/badge/Karpenter-0F1689?style=flat-square&logo=karpenter&logoColor=white) | Auto-scaling and resource management |
+
+</details>
 
 <details>
 <summary><b>📊 Monitoring & Observability</b></summary>
@@ -111,7 +125,7 @@ You can view the architecture diagram below for a visual overview of the system 
 ### ☁️ **Cloud Tools**
 - ![AWS CLI](https://img.shields.io/badge/AWS%20CLI-232F3E?style=flat-square&logo=amazon-aws&logoColor=white) 
   - Configured with appropriate permissions
-  - EKS, VPC, and S3 resource access
+  - EKS, VPC, DynamoDB, and S3 resource access
 
 </td>
 <td width="33%">
@@ -130,6 +144,20 @@ You can view the architecture diagram below for a visual overview of the system 
   - Kubernetes application management
 - ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white) 
   - Container building and testing
+
+### 🚀 **Scalability Tools**
+- ![Karpenter](https://img.shields.io/badge/Karpenter-0F1689?style=flat-square&logo=karpenter&logoColor=white) 
+  - Auto-scaling and resource management
+
+### 📥 **Deployment Tools**
+- ![ArgoCD](https://img.shields.io/badge/ArgoCD-EF7B4D?style=flat-square&logo=argo&logoColor=white) 
+  - GitOps deployment and drift detection
+
+### 📊 **Monitoring Tools**
+- ![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?style=flat-square&logo=prometheus&logoColor=white) 
+  - Metrics collection and alerting
+- ![Grafana](https://img.shields.io/badge/Grafana-F46800?style=flat-square&logo=grafana&logoColor=white) 
+  - Visualization dashboards and analytics
 
 </td>
 </tr>
@@ -157,7 +185,7 @@ Update the `Terraform/2-backend.tf` file with your S3 bucket details for Terrafo
 Navigate to the Terraform directory and initialize the deployment:
 
 ```bash
-cd infrastructure/
+cd Terraform/
 terraform init
 terraform apply -auto-approve
 ```
@@ -197,12 +225,16 @@ kubectl apply -f argocd/application.yaml
 │       └── templates/        # Kubernetes manifests
 │   
 │
-├── 🏗️ Infrastructure (Terraform)
+├── 🏗️ Terraform
 │   ├── 0-versions.tf         # Provider versions
 │   ├── ...                   # Main infrastructure files
 │   └── modules/
 │       ├── vpc/              # VPC module
 │       └── eks/              # EKS cluster module
+
+├── 🚀 Scalability (Karpenter)
+│   └── karpenter/
+│       └── karpenter-resources.yaml    # Auto-scaling configuration
 │
 ├── 📊 Monitoring & GitOps
 │   └── argocd/
@@ -219,6 +251,9 @@ kubectl apply -f argocd/application.yaml
 │       ├── argocd.yml        # GitOps controller setup
 │       ├── monitoring.yml    # Observability stack deployment
 │       └── deploy.yml        # Application deployment
+
+├── 🔧 backend/
+│   └── main.tf            # Terraform S3 & DynamoDB
 │
 └── 🖼️ Static Assets
     └── static/               # Planet images & backgrounds
@@ -245,7 +280,7 @@ kubectl apply -f argocd/application.yaml
 ### 1️⃣ **Continuous Integration (CI)**
 - ✅ **Code Quality:** Automated testing with pytest
 - 📊 **Code Coverage:** Coverage reports to maintain standards
-- 🔒 **Security Scanning:** Container vulnerability checks
+- 🔒 **Code Scanning:** Code quality checks using SonarQube
 
 </td>
 <td width="33%">
@@ -286,6 +321,18 @@ kubectl apply -f argocd/application.yaml
 #### 🏗️ **Terraform Workflow** (`terraform.yml`)
 - Manages infrastructure provisioning and updates via IaC
 - Uses an S3 backend for secure state management
+
+#### 🚀 **Karpenter Workflow** (`karpenter.yml`)
+- Manages auto-scaling and resource management
+
+#### 📊 **Monitoring Workflow** (`monitoring.yml`)
+- Manages monitoring stack deployment
+
+#### 📥 **ArgoCD Workflow** (`argocd.yml`)
+- Manages ArgoCD deployment and drift detection
+
+#### 📤 **Deploy Workflow** (`deploy.yml`)
+- Manages application deployment
 
 </details>
 
@@ -359,6 +406,38 @@ Easily revert to previous stable application states with a single command
 - 📱 **Application Metrics:** Request rates, response times, and error rates
 - 🖥️ **Infrastructure Monitoring:** Node CPU, memory, disk, and network usage
 - ☸️ **Kubernetes Cluster:** Pod status, resource utilization, and cluster health
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🚀 Auto-scaling & Resource Management
+
+<div align="center">
+
+![Karpenter](https://img.shields.io/badge/Karpenter-Auto-scaling-orange?style=for-the-badge&logo=amazon-eks)
+
+</div>
+
+### 🚀 **Karpenter Implementation**
+
+<table>
+<tr>
+<td width="50%">
+
+#### ⚙️ **Cluster Configuration**
+- **Version:** Kubernetes 1.30
+- **Node Groups:** Auto-scaling worker nodes
+- **Instance Type:** t3.medium instances
+
+</td>
+<td width="50%">
+
+#### 📊 **Auto-scaling**
+- **Auto-scaling:** Auto-scaling worker nodes
+- **Instance Type:** t3.medium instances
 
 </td>
 </tr>
