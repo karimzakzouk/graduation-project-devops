@@ -97,7 +97,7 @@ You can view the architecture diagram below for a visual overview of the system 
 
 | Tool | Purpose |
 |------|---------|
-| ![Karpenter](https://img.shields.io/badge/Karpenter-0F1689?style=flat-square&logo=karpenter&logoColor=white) | Auto-scaling and resource management |
+| [![Karpenter](https://github.com/kubernetes-sigs/karpenter/actions/workflows/presubmit.yaml/badge.svg)](https://github.com/kubernetes-sigs/karpenter/actions/workflows/presubmit.yaml) | Auto-scaling and resource management |
 
 </details>
 
