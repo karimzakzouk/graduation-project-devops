@@ -28,7 +28,7 @@ node_groups = {
     ssh_key_name = "MyPairKey" 
   }
 }
- 
+
 # Kubernetes Namespace
 app_namespace        = "my-solar-system-app-namespace"
 monitoring_namespace = "my-solar-system-app-monitoring"
