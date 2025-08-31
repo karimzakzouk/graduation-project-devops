@@ -94,32 +94,3 @@ jobs:
           envsubst < ./argocd/monitoring.yml | \
             sed "s/monitoring\.yourdomain\.com/${{ steps.nginx-lb.outputs.nginx_hostname }}/g" | \
             kubectl apply -f -
-
-      - name: Wait for Monitoring Ingress and Print Endpoints
-        run: |
-          # Wait for monitoring ingress
-          MONITORING_INGRESS=""
-          for i in {1..30}; do
-            MONITORING_INGRESS=$(kubectl get ingress -n ${{ inputs.monitoring_namespace }} -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
-            if [[ ! -z "$MONITORING_INGRESS" ]]; then
-              echo "Monitoring ingress is ready: $MONITORING_INGRESS"
-              break
-            else
-              echo "Waiting for monitoring ingress to be ready ($i/30)..."
-              sleep 10
-            fi
-          done
-
-          # Print all service endpoints
-          ARGOCD_HOST=$(kubectl get svc argocd-server -n ${{ inputs.argocd_namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')
-          APP_HOST=$(kubectl get svc ${{ inputs.app_name }}-svc -n ${{ inputs.app_namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo 'Not found')
-          echo "🚀 ArgoCD: http://$ARGOCD_HOST"
-          echo "🌟 App: http://$APP_HOST"
-          if [[ -z "$MONITORING_INGRESS" ]]; then
-            echo "⚠️ Monitoring Ingress not ready"
-          else
-            echo "📊 Monitoring Services:"
-            echo "Prometheus: http://$MONITORING_INGRESS/prometheus"
-            echo "Grafana: http://$MONITORING_INGRESS/grafana"
-            echo "Alertmanager: http://$MONITORING_INGRESS/alertmanager"
-          fi
