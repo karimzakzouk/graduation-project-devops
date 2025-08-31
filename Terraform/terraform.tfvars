@@ -25,7 +25,7 @@ node_groups = {
       min_size     = 1
     }
 
-    ssh_key_name = "MyPairKey"
+    ssh_key_name = "MyPairKey" 
   }
 }
  
