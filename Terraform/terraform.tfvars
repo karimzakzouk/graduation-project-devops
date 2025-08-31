@@ -26,7 +26,7 @@ node_groups = {
     }
   }
 }
-
+ 
 # Kubernetes Namespace
 app_namespace        = "my-solar-system-app-namespace"
 monitoring_namespace = "my-solar-system-app-monitoring"
