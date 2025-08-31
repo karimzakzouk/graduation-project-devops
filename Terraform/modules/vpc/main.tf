@@ -45,6 +45,10 @@ resource "aws_subnet" "public" {
     "karpenter.sh/discovery"                    = var.cluster_name
   }
 
+  lifecycle {
+    create_before_destroy = false
+  }
+
   depends_on = [
     aws_vpc.main
   ]
