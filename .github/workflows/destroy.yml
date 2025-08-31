@@ -60,7 +60,43 @@ jobs:
         continue-on-error: true
 
       # ==================================================
-      # PHASE 1: DELETE APPLICATIONS (ArgoCD first)
+      # PHASE 1: PRE-CLEANUP - GET KARPENTER VERSION INFO
+      # ==================================================
+      - name: Detect Karpenter Version and Resources
+        id: karpenter-info
+        run: |
+          echo "🔍 Detecting Karpenter installation and version..."
+          
+          # Check if Karpenter is installed
+          KARPENTER_INSTALLED=false
+          if kubectl get namespace karpenter 2>/dev/null; then
+            KARPENTER_INSTALLED=true
+            echo "karpenter_installed=true" >> $GITHUB_OUTPUT
+            
+            # Try to get Karpenter version
+            KARPENTER_VERSION=$(kubectl get deployment karpenter -n karpenter -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null | cut -d':' -f2 || echo "unknown")
+            echo "Detected Karpenter version: $KARPENTER_VERSION"
+            echo "karpenter_version=$KARPENTER_VERSION" >> $GITHUB_OUTPUT
+            
+            # Check which CRDs exist to determine API version
+            if kubectl get crd provisioners.karpenter.sh 2>/dev/null; then
+              echo "Found legacy Provisioner CRD (v1alpha5)"
+              echo "api_version=legacy" >> $GITHUB_OUTPUT
+            elif kubectl get crd nodepools.karpenter.sh 2>/dev/null; then
+              echo "Found new NodePool CRD (v1beta1)"
+              echo "api_version=new" >> $GITHUB_OUTPUT
+            else
+              echo "No Karpenter CRDs found"
+              echo "api_version=none" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "karpenter_installed=false" >> $GITHUB_OUTPUT
+            echo "api_version=none" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+
+      # ==================================================
+      # PHASE 2: DELETE APPLICATIONS (ArgoCD first)
       # ==================================================
       - name: Delete ArgoCD Applications
         run: |
@@ -72,30 +108,38 @@ jobs:
         continue-on-error: true
 
       # ==================================================
-      # PHASE 2: SCALE DOWN AND DELETE WORKLOADS
+      # PHASE 3: SCALE DOWN AND DELETE WORKLOADS + MISSING RESOURCES
       # ==================================================
-      - name: Scale Down and Delete Workloads
+      - name: Scale Down and Delete All Workloads
         run: |
-          echo "📉 Scaling down all workloads and deleting services..."
+          echo "📉 Comprehensive workload and resource cleanup..."
           
           # Get target namespaces
           TARGET_NAMESPACES=("${{ vars.APP_NAMESPACE }}" "${{ vars.MONITORING_NAMESPACE }}" "${{ vars.ARGOCD_NAMESPACE }}" "ingress-nginx" "${{ vars.KARPENTER_NAMESPACE }}")
           
-          # Scale down ALL deployments across target namespaces
+          # Scale down ALL deployments, statefulsets, daemonsets
           for ns in "${TARGET_NAMESPACES[@]}"; do
             if [[ -n "$ns" ]] && kubectl get namespace $ns --ignore-not-found 2>/dev/null; then
-              echo "Scaling down deployments in namespace: $ns"
-              kubectl get deployments -n $ns -o json 2>/dev/null | jq -r '.items[]? | .metadata.name' | while read deployment; do
-                if [[ -n "$deployment" ]]; then
-                  echo "  Scaling down deployment: $deployment"
-                  kubectl scale deployment $deployment --replicas=0 -n $ns --timeout=30s || true
-                fi
-              done
+              echo "Processing namespace: $ns"
+              
+              # Scale down workloads
+              kubectl scale deployment --all --replicas=0 -n $ns --timeout=30s || true
+              kubectl scale statefulset --all --replicas=0 -n $ns --timeout=30s || true
+              
+              # Delete workloads
+              kubectl delete deployment,replicaset,statefulset,daemonset,job,cronjob --all -n $ns --ignore-not-found --timeout=60s || true
+              
+              # Delete network resources
+              kubectl delete ingress --all -n $ns --ignore-not-found --timeout=30s || true
+              kubectl delete networkpolicy --all -n $ns --ignore-not-found --timeout=30s || true
+              
+              # Delete storage
+              kubectl delete pvc --all -n $ns --ignore-not-found --timeout=60s || true
             fi
           done
           
-          # Delete ALL services of type LoadBalancer IMMEDIATELY (to prevent AWS LB hanging)
-          echo "🔌 Deleting LoadBalancer services across all namespaces..."
+          # Delete ALL services of type LoadBalancer IMMEDIATELY
+          echo "🔌 Deleting ALL LoadBalancer services..."
           kubectl get services --all-namespaces -o json | jq -r '.items[]? | select(.spec.type=="LoadBalancer") | "\(.metadata.namespace) \(.metadata.name)"' | while read namespace service; do
             if [[ -n "$namespace" && -n "$service" ]]; then
               echo "  Deleting LoadBalancer service: $service in $namespace"
@@ -103,96 +147,128 @@ jobs:
             fi
           done
           
-          # Delete daemonsets that might be running
-          echo "🗑️ Deleting daemonsets..."
-          for ns in "${TARGET_NAMESPACES[@]}"; do
-            if [[ -n "$ns" ]] && kubectl get namespace $ns --ignore-not-found 2>/dev/null; then
-              kubectl get daemonsets -n $ns -o json 2>/dev/null | jq -r '.items[]? | .metadata.name' | while read daemonset; do
-                if [[ -n "$daemonset" ]]; then
-                  echo "  Deleting daemonset: $daemonset in $ns"
-                  kubectl delete daemonset $daemonset -n $ns --ignore-not-found --timeout=60s || true
-                fi
-              done
-            fi
-          done
-          
           echo "⏳ Waiting for LoadBalancers to be cleaned up..."
           sleep 60
-          echo "✅ Workload scaling and service cleanup completed"
+          echo "✅ Workload and service cleanup completed"
         continue-on-error: true
 
       # ==================================================
-      # PHASE 3: CLEAN UP KARPENTER RESOURCES
+      # PHASE 4: KARPENTER-SPECIFIC CLEANUP WITH VERSION DETECTION
       # ==================================================
-      - name: Delete Karpenter Resources (Legacy API)
+      - name: Delete Karpenter Resources (Version-Aware)
         run: |
-          echo "Cleaning up Karpenter resources (legacy API versions)..."
+          echo "🚀 Starting Karpenter cleanup..."
           
-          # Delete LEGACY Karpenter Provisioners (v1alpha5) - THIS IS WHAT YOU'RE USING
-          echo "Deleting legacy Karpenter Provisioners (v1alpha5)..."
-          kubectl delete provisioner ${{ vars.KARPENTER_NODEPOOL_NAME }} --ignore-not-found --timeout=60s || true
-          kubectl delete provisioner --all --ignore-not-found --timeout=60s || true
+          if [[ "${{ steps.karpenter-info.outputs.karpenter_installed }}" == "true" ]]; then
+            API_VERSION="${{ steps.karpenter-info.outputs.api_version }}"
+            echo "Detected Karpenter API version: $API_VERSION"
+            
+            # Force delete all Karpenter-managed nodes first
+            echo "🗑️ Force deleting Karpenter nodes..."
+            kubectl get nodes -l karpenter.sh/cluster=${{ vars.CLUSTER_NAME }} --no-headers -o custom-columns=":metadata.name" | xargs -r kubectl delete node --force --grace-period=0 || true
+            kubectl get nodes -l node.kubernetes.io/instance-type --no-headers -o custom-columns=":metadata.name" | while read node; do
+              if kubectl describe node $node 2>/dev/null | grep -q "karpenter"; then
+                echo "Force deleting Karpenter node: $node"
+                kubectl delete node $node --force --grace-period=0 || true
+              fi
+            done || true
+            
+            # Clean up based on detected API version
+            if [[ "$API_VERSION" == "legacy" ]]; then
+              echo "🧹 Cleaning up LEGACY Karpenter resources..."
+              
+              # Delete legacy Provisioners and AWSNodeTemplates
+              kubectl delete provisioner --all --ignore-not-found --timeout=60s || true
+              kubectl delete awsnodetemplate --all --ignore-not-found --timeout=60s || true
+              
+              # Remove finalizers from legacy resources
+              kubectl get provisioner -o name | xargs -r -I {} kubectl patch {} -p '{"metadata":{"finalizers":[]}}' --type=merge || true
+              kubectl get awsnodetemplate -o name | xargs -r -I {} kubectl patch {} -p '{"metadata":{"finalizers":[]}}' --type=merge || true
+              
+            elif [[ "$API_VERSION" == "new" ]]; then
+              echo "🧹 Cleaning up NEW Karpenter resources..."
+              
+              # Delete new API resources
+              kubectl delete nodepool --all --ignore-not-found --timeout=60s || true
+              kubectl delete ec2nodeclass --all --ignore-not-found --timeout=60s || true
+              kubectl delete nodeclaim --all --ignore-not-found --timeout=60s || true
+              
+              # Remove finalizers from new resources
+              kubectl get nodepool -o name | xargs -r -I {} kubectl patch {} -p '{"metadata":{"finalizers":[]}}' --type=merge || true
+              kubectl get ec2nodeclass -o name | xargs -r -I {} kubectl patch {} -p '{"metadata":{"finalizers":[]}}' --type=merge || true
+              kubectl get nodeclaim -o name | xargs -r -I {} kubectl patch {} -p '{"metadata":{"finalizers":[]}}' --type=merge || true
+            fi
+            
+            # Clean up Karpenter webhooks and CRDs
+            echo "🕸️ Cleaning up Karpenter webhooks and CRDs..."
+            kubectl delete validatingwebhookconfiguration validation.webhook.karpenter.sh --ignore-not-found || true
+            kubectl delete validatingwebhookconfiguration defaulting.webhook.karpenter.sh --ignore-not-found || true
+            kubectl delete mutatingwebhookconfiguration defaulting.webhook.karpenter.sh --ignore-not-found || true
+            
+            # Delete all Karpenter CRDs
+            kubectl get crd -o name | grep karpenter | xargs -r kubectl delete --ignore-not-found --timeout=60s || true
+            
+            # Wait for cleanup
+            sleep 30
+          else
+            echo "ℹ️ Karpenter not installed, skipping Karpenter cleanup"
+          fi
           
-          # Delete LEGACY AWSNodeTemplates (v1alpha1) - THIS IS WHAT YOU'RE USING
-          echo "Deleting legacy AWSNodeTemplates (v1alpha1)..."
-          kubectl delete awsnodetemplate ${{ vars.KARPENTER_NODECLASS_NAME }} --ignore-not-found --timeout=60s || true
-          kubectl delete awsnodetemplate --all --ignore-not-found --timeout=60s || true
-          
-          # Remove finalizers from legacy resources if they're stuck
-          echo "Removing finalizers from stuck Provisioners..."
-          kubectl get provisioner -o name | xargs -r -I {} kubectl patch {} -p '{"metadata":{"finalizers":[]}}' --type=merge || true
-          
-          echo "Removing finalizers from stuck AWSNodeTemplates..."
-          kubectl get awsnodetemplate -o name | xargs -r -I {} kubectl patch {} -p '{"metadata":{"finalizers":[]}}' --type=merge || true
-          
-          echo "Waiting for Karpenter resources to be cleaned up..."
-          sleep 60
-          echo "Karpenter resources cleanup completed"
+          echo "✅ Karpenter cleanup completed"
         continue-on-error: true
 
-      - name: Force Delete Karpenter Nodes from Kubernetes
+      # ==================================================
+      # PHASE 5: AWS RESOURCE CLEANUP (CRITICAL ADDITION)
+      # ==================================================
+      - name: Clean Up AWS Resources Created by Karpenter
         run: |
-          echo "Removing Karpenter-managed nodes from Kubernetes cluster..."
+          echo "☁️ Cleaning up AWS resources that might prevent Terraform destroy..."
           
-          # Delete nodes that have Karpenter labels
-          kubectl get nodes -l karpenter.sh/provisioner-name --no-headers -o custom-columns=":metadata.name" | xargs -r kubectl delete node --timeout=60s || true
-          kubectl get nodes -l karpenter.sh/cluster=${{ vars.CLUSTER_NAME }} --no-headers -o custom-columns=":metadata.name" | xargs -r kubectl delete node --timeout=60s || true
+          # Get cluster name for filtering
+          CLUSTER_NAME="${{ vars.CLUSTER_NAME }}"
           
-          # Also try generic Karpenter node labels
-          kubectl get nodes -l node.kubernetes.io/instance-type --no-headers -o custom-columns=":metadata.name" | while read node; do
-            if kubectl describe node $node | grep -q "karpenter"; then
-              echo "Deleting Karpenter node: $node"
-              kubectl delete node $node --timeout=60s || true
+          # Terminate any EC2 instances with Karpenter tags
+          echo "🖥️ Terminating Karpenter-managed EC2 instances..."
+          INSTANCE_IDS=$(aws ec2 describe-instances \
+            --filters "Name=tag:karpenter.sh/cluster,Values=$CLUSTER_NAME" "Name=instance-state-name,Values=running,pending" \
+            --query 'Reservations[].Instances[].InstanceId' --output text || echo "")
+          
+          if [[ -n "$INSTANCE_IDS" && "$INSTANCE_IDS" != "None" ]]; then
+            echo "Found Karpenter instances to terminate: $INSTANCE_IDS"
+            aws ec2 terminate-instances --instance-ids $INSTANCE_IDS || true
+            echo "⏳ Waiting for instances to terminate..."
+            aws ec2 wait instance-terminated --instance-ids $INSTANCE_IDS --cli-read-timeout 300 || true
+          else
+            echo "No Karpenter-managed instances found"
+          fi
+          
+          # Delete Launch Templates created by Karpenter
+          echo "🚀 Deleting Karpenter Launch Templates..."
+          aws ec2 describe-launch-templates \
+            --filters "Name=tag:karpenter.sh/cluster,Values=$CLUSTER_NAME" \
+            --query 'LaunchTemplates[].LaunchTemplateName' --output text | tr '\t' '\n' | while read template_name; do
+            if [[ -n "$template_name" && "$template_name" != "None" ]]; then
+              echo "Deleting launch template: $template_name"
+              aws ec2 delete-launch-template --launch-template-name "$template_name" || true
             fi
           done || true
           
-          echo "Node cleanup completed"
+          # Clean up Auto Scaling Groups
+          echo "📏 Checking for Karpenter Auto Scaling Groups..."
+          aws autoscaling describe-auto-scaling-groups \
+            --query "AutoScalingGroups[?contains(Tags[?Key=='karpenter.sh/cluster'].Value, '$CLUSTER_NAME')].AutoScalingGroupName" \
+            --output text | tr '\t' '\n' | while read asg_name; do
+            if [[ -n "$asg_name" && "$asg_name" != "None" ]]; then
+              echo "Deleting ASG: $asg_name"
+              aws autoscaling delete-auto-scaling-group --auto-scaling-group-name "$asg_name" --force-delete || true
+            fi
+          done || true
+          
+          echo "✅ AWS resource cleanup completed"
         continue-on-error: true
 
-      - name: Clean up Karpenter CRDs and Webhooks (Kubectl Only)
-        run: |
-          echo "Cleaning up Karpenter CRDs and webhooks..."
-          
-          # Delete Karpenter webhooks first (this is critical)
-          echo "Deleting Karpenter webhooks..."
-          kubectl delete validatingwebhookconfiguration validation.webhook.karpenter.sh --ignore-not-found || true
-          kubectl delete validatingwebhookconfiguration defaulting.webhook.karpenter.sh --ignore-not-found || true
-          kubectl delete mutatingwebhookconfiguration defaulting.webhook.karpenter.sh --ignore-not-found || true
-          
-          # Delete LEGACY Karpenter CRDs (what you're actually using)
-          echo "Deleting LEGACY Karpenter CRDs..."
-          kubectl delete crd provisioners.karpenter.sh --ignore-not-found --timeout=60s || true
-          kubectl delete crd awsnodetemplates.karpenter.k8s.aws --ignore-not-found --timeout=60s || true
-          
-          # Remove finalizers from stuck CRDs
-          echo "Removing finalizers from stuck Karpenter CRDs..."
-          kubectl patch crd provisioners.karpenter.sh -p '{"metadata":{"finalizers":[]}}' --type=merge || true
-          kubectl patch crd awsnodetemplates.karpenter.k8s.aws -p '{"metadata":{"finalizers":[]}}' --type=merge || true
-          
-          echo "Karpenter CRDs and webhooks cleanup completed"
-        continue-on-error: true
       # ==================================================
-      # PHASE 4: UNINSTALL HELM RELEASES
+      # PHASE 6: UNINSTALL HELM RELEASES
       # ==================================================
       - name: Uninstall All Helm Releases
         run: |
@@ -214,21 +290,25 @@ jobs:
           echo "Uninstalling ArgoCD..."
           helm uninstall argocd -n ${{ vars.ARGOCD_NAMESPACE }} --timeout=300s || true
           
+          # Uninstall Karpenter
+          echo "Uninstalling Karpenter..."
+          helm uninstall karpenter -n karpenter --timeout=300s || true
+          
           echo "⏳ Waiting for Helm releases to be fully removed..."
           sleep 30
           echo "✅ Helm releases uninstalled"
         continue-on-error: true
 
       # ==================================================
-      # PHASE 5: DELETE CRDs BEFORE NAMESPACE CLEANUP
+      # PHASE 7: DELETE ALL CRDs (COMPREHENSIVE)
       # ==================================================
-      - name: Delete Custom Resource Definitions
+      - name: Delete All Custom Resource Definitions
         run: |
-          echo "🗂️ Deleting Custom Resource Definitions..."
+          echo "🗂️ Comprehensive CRD cleanup..."
           
           # Delete monitoring CRDs
           echo "Deleting monitoring CRDs..."
-          kubectl get crd -o name | grep -E 'prometheus|grafana|alertmanager|servicemonitor|prometheusrule|podmonitor|thanosruler' | xargs -r kubectl delete --timeout=60s || true
+          kubectl get crd -o name | grep -E 'prometheus|grafana|alertmanager|servicemonitor|prometheusrule|podmonitor|thanosruler|coreos' | xargs -r kubectl delete --timeout=60s || true
           
           # Delete ArgoCD CRDs
           echo "Deleting ArgoCD CRDs..."
@@ -238,7 +318,11 @@ jobs:
           echo "Deleting ingress CRDs..."
           kubectl get crd -o name | grep -E 'ingress|nginx' | xargs -r kubectl delete --timeout=60s || true
           
-          # Remove finalizers from stuck CRDs
+          # Delete ALL Karpenter CRDs (both old and new)
+          echo "Deleting ALL Karpenter CRDs..."
+          kubectl get crd -o name | grep karpenter | xargs -r kubectl delete --timeout=60s || true
+          
+          # Remove finalizers from ALL stuck CRDs
           echo "Removing finalizers from stuck CRDs..."
           kubectl get crd -o json | jq -r '.items[]? | select(.metadata.finalizers) | .metadata.name' | while read crd_name; do
             if [[ -n "$crd_name" ]]; then
@@ -251,7 +335,7 @@ jobs:
         continue-on-error: true
 
       # ==================================================
-      # PHASE 6: CLEANUP PERSISTENT STORAGE
+      # PHASE 8: CLEANUP PERSISTENT STORAGE
       # ==================================================
       - name: Cleanup Persistent Storage
         run: |
@@ -279,7 +363,7 @@ jobs:
         continue-on-error: true
 
       # ==================================================
-      # PHASE 7: AGGRESSIVE PRE-NAMESPACE CLEANUP
+      # PHASE 9: AGGRESSIVE PRE-NAMESPACE CLEANUP
       # ==================================================
       - name: Aggressive Resource Cleanup Before Namespace Deletion
         run: |
@@ -296,24 +380,22 @@ jobs:
               echo "Force deleting all pods..."
               kubectl delete pods --all -n $ns --force --grace-period=0 --ignore-not-found || true
               
-              # Delete all workload resources
-              echo "Deleting workload resources..."
-              kubectl delete deployment,replicaset,statefulset,daemonset --all -n $ns --ignore-not-found --timeout=30s || true
-              
-              # Delete all services
-              echo "Deleting services..."
+              # Delete ALL resource types that could have finalizers
+              echo "Deleting all remaining resources..."
+              kubectl delete deployment,replicaset,statefulset,daemonset,job,cronjob --all -n $ns --ignore-not-found --timeout=30s || true
               kubectl delete svc --all -n $ns --ignore-not-found --timeout=30s || true
+              kubectl delete ingress --all -n $ns --ignore-not-found --timeout=30s || true
+              kubectl delete configmap --all -n $ns --ignore-not-found --timeout=30s || true
+              kubectl delete secret --all -n $ns --ignore-not-found --timeout=30s || true
               
-              # Delete any custom resources that might have finalizers
-              echo "Deleting custom resources..."
-              kubectl delete application --all -n $ns --ignore-not-found --timeout=30s || true
-              kubectl delete prometheus --all -n $ns --ignore-not-found --timeout=30s || true
-              kubectl delete alertmanager --all -n $ns --ignore-not-found --timeout=30s || true
-              kubectl delete grafana --all -n $ns --ignore-not-found --timeout=30s || true
-              kubectl delete servicemonitor --all -n $ns --ignore-not-found --timeout=30s || true
-              kubectl delete prometheusrule --all -n $ns --ignore-not-found --timeout=30s || true
+              # Delete monitoring-specific resources
+              kubectl delete servicemonitor,prometheusrule,podmonitor --all -n $ns --ignore-not-found --timeout=30s || true
+              kubectl delete prometheus,alertmanager,grafana --all -n $ns --ignore-not-found --timeout=30s || true
               
-              # Clean up any remaining resources with finalizers
+              # Delete ArgoCD-specific resources
+              kubectl delete application,appproject --all -n $ns --ignore-not-found --timeout=30s || true
+              
+              # Remove finalizers from ALL remaining resources
               echo "Removing finalizers from remaining resources in $ns..."
               for resource_type in $(kubectl api-resources --verbs=list --namespaced -o name 2>/dev/null | grep -v events); do
                 kubectl get $resource_type -n $ns -o json 2>/dev/null | \
@@ -336,7 +418,7 @@ jobs:
         continue-on-error: true
 
       # ==================================================
-      # PHASE 8: DELETE NAMESPACES WITH ENHANCED FORCE CLEANUP
+      # PHASE 10: DELETE NAMESPACES WITH ENHANCED FORCE CLEANUP
       # ==================================================
       - name: Delete Namespaces with Enhanced Force Cleanup
         run: |
@@ -456,32 +538,43 @@ jobs:
         continue-on-error: true
 
       # ==================================================
-      # PHASE 9: FINAL VERIFICATION AND WAIT
+      # PHASE 11: VERIFICATION BEFORE TERRAFORM DESTROY
       # ==================================================
-      - name: Final Cleanup Verification
+      - name: Pre-Terraform Destroy Verification
         run: |
-          echo "🔍 Performing final cleanup verification..."
+          echo "🔍 Performing comprehensive verification before Terraform destroy..."
           
-          echo "⏳ Waiting for final cleanup to complete..."
+          echo "⏳ Final waiting period for resource cleanup..."
           sleep 60
           
-          echo "📊 Final cluster state verification:"
-          echo "Remaining pods in target namespaces:"
+          echo "📊 COMPREHENSIVE CLUSTER STATE VERIFICATION:"
+          
+          echo "1. Remaining pods in target namespaces:"
           kubectl get pods -A | grep -E "${{ vars.APP_NAMESPACE }}|${{ vars.MONITORING_NAMESPACE }}|${{ vars.ARGOCD_NAMESPACE }}|ingress-nginx|${{ vars.KARPENTER_NAMESPACE }}" || echo "✅ No pods found in target namespaces"
           
-          echo "Remaining namespaces:"
+          echo "2. Remaining namespaces:"
           kubectl get namespaces | grep -E "${{ vars.APP_NAMESPACE }}|${{ vars.MONITORING_NAMESPACE }}|${{ vars.ARGOCD_NAMESPACE }}|ingress-nginx|${{ vars.KARPENTER_NAMESPACE }}" || echo "✅ No target namespaces found"
           
-          echo "Remaining LoadBalancer services:"
+          echo "3. Remaining LoadBalancer services:"
           kubectl get svc -A --field-selector spec.type=LoadBalancer | grep -v "NAMESPACE" || echo "✅ No LoadBalancer services found"
           
-          echo "Remaining Karpenter CRDs:"
+          echo "4. Remaining Karpenter CRDs:"
           kubectl get crd | grep karpenter || echo "✅ No Karpenter CRDs found"
           
-          echo "✅ Final verification completed - proceeding to Terraform destroy"
+          echo "5. Remaining PVCs:"
+          kubectl get pvc -A | grep -v "NAMESPACE" || echo "✅ No PVCs found"
+          
+          echo "6. Remaining custom resources:"
+          kubectl get application -A 2>/dev/null || echo "✅ No ArgoCD applications found"
+          kubectl get prometheus -A 2>/dev/null || echo "✅ No Prometheus resources found"
+          
+          echo "7. AWS LoadBalancers check:"
+          aws elbv2 describe-load-balancers --query 'LoadBalancers[?starts_with(LoadBalancerName, `k8s-`)].LoadBalancerName' --output text || echo "✅ No Kubernetes LoadBalancers found in AWS"
+          
+          echo "✅ Pre-Terraform verification completed - proceeding to Terraform destroy"
 
       # ==================================================
-      # PHASE 10: TERRAFORM DESTROY
+      # PHASE 12: TERRAFORM DESTROY
       # ==================================================
       - name: Terraform Init
         run: terraform init
@@ -496,7 +589,41 @@ jobs:
         working-directory: ./Terraform
 
       # ==================================================
-      # PHASE 11: CLEANUP GITHUB VARIABLES
+      # PHASE 13: POST-TERRAFORM AWS CLEANUP (SAFETY NET)
+      # ==================================================
+      - name: Post-Terraform AWS Resource Cleanup
+        run: |
+          echo "🧹 Post-Terraform cleanup - catching any remaining AWS resources..."
+          
+          CLUSTER_NAME="${{ vars.CLUSTER_NAME }}"
+          
+          # Clean up any remaining LoadBalancers that might have been missed
+          echo "🔌 Final LoadBalancer cleanup..."
+          aws elbv2 describe-load-balancers --query "LoadBalancers[?contains(LoadBalancerName, 'k8s-$CLUSTER_NAME') || contains(LoadBalancerName, 'k8s-ingress')].LoadBalancerArn" --output text | tr '\t' '\n' | while read lb_arn; do
+            if [[ -n "$lb_arn" && "$lb_arn" != "None" ]]; then
+              echo "Deleting remaining LoadBalancer: $lb_arn"
+              aws elbv2 delete-load-balancer --load-balancer-arn "$lb_arn" || true
+            fi
+          done || true
+          
+          # Clean up any remaining Security Groups with cluster tags
+          echo "🛡️ Cleaning up remaining Security Groups..."
+          aws ec2 describe-security-groups --filters "Name=tag:kubernetes.io/cluster/$CLUSTER_NAME,Values=owned" --query 'SecurityGroups[].GroupId' --output text | tr '\t' '\n' | while read sg_id; do
+            if [[ -n "$sg_id" && "$sg_id" != "None" ]]; then
+              echo "Deleting security group: $sg_id"
+              aws ec2 delete-security-group --group-id "$sg_id" || true
+            fi
+          done || true
+          
+          # Clean up SQS Queue created for Karpenter
+          echo "📬 Cleaning up Karpenter SQS queue..."
+          aws sqs delete-queue --queue-url "https://sqs.us-east-1.amazonaws.com/${{ secrets.AWS_ACCOUNT_ID }}/karpenter-interruption-queue-$CLUSTER_NAME" || true
+          
+          echo "✅ Post-Terraform AWS cleanup completed"
+        continue-on-error: true
+
+      # ==================================================
+      # PHASE 14: CLEANUP GITHUB VARIABLES
       # ==================================================
       - name: Remove GitHub Repository Variables
         run: |
@@ -517,9 +644,9 @@ jobs:
         continue-on-error: true
 
       # ==================================================
-      # FINAL SUCCESS MESSAGE
+      # FINAL SUCCESS MESSAGE WITH MANUAL CLEANUP INSTRUCTIONS
       # ==================================================
-      - name: Destroy Complete
+      - name: Destroy Complete with Manual Cleanup Guide
         run: |
           echo "🎉 ========================================="
           echo "🎉 TERRAFORM DESTROY WORKFLOW COMPLETED!"
@@ -528,5 +655,17 @@ jobs:
           echo "✅ Infrastructure has been destroyed"
           echo "✅ GitHub variables have been removed"
           echo ""
-          echo "🔍 If any namespaces are still stuck, you can manually run:"
-          echo "kubectl get namespace <namespace-name> -o json | jq 'del(.spec.finalizers[])' | kubectl replace --raw \"/api/v1/namespaces/<namespace-name>/finalize\" -f -"
+          echo "🔍 MANUAL VERIFICATION RECOMMENDED:"
+          echo "1. Check AWS Console for any remaining:"
+          echo "   - EC2 instances with tags containing '${{ vars.CLUSTER_NAME }}'"
+          echo "   - LoadBalancers starting with 'k8s-'"
+          echo "   - Security Groups with cluster tags"
+          echo "   - Launch Templates with Karpenter tags"
+          echo "   - Auto Scaling Groups"
+          echo ""
+          echo "2. If any namespaces are still stuck, manually run:"
+          echo "   kubectl get namespace <namespace-name> -o json | jq 'del(.spec.finalizers[])' | kubectl replace --raw \"/api/v1/namespaces/<namespace-name>/finalize\" -f -"
+          echo ""
+          echo "3. Check S3 bucket 'solar-system-terraform-state-123456' - Terraform state should be updated to show no resources"
+          echo ""
+          echo "🚨 If you see any AWS charges after this, check the resources listed above!"
