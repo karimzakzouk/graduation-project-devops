@@ -84,27 +84,6 @@ jobs:
           echo "🌐 NGINX Ingress Controller: $NGINX_LB"
 
           echo ""
-          echo "================= DETAILED INGRESS STATUS ================="
-          echo "All Ingress Resources:"
-          kubectl get ingress -A -o wide 2>/dev/null || echo "No ingress resources found"
-          echo ""
-          echo "Monitoring Namespace Ingress Details:"
-          kubectl describe ingress -n ${{ inputs.monitoring_namespace }} 2>/dev/null || echo "No ingress in monitoring namespace"
-
-          echo ""
-          echo "================= SERVICE STATUS ================="
-          echo "Monitoring Services (should be ClusterIP):"
-          kubectl get svc -n ${{ inputs.monitoring_namespace }} -l app.kubernetes.io/instance=kube-prometheus-stack 2>/dev/null || echo "No monitoring services found"
-
-          echo ""
-          echo "All LoadBalancer Services:"
-          kubectl get svc -A --field-selector spec.type=LoadBalancer -o wide 2>/dev/null || echo "No LoadBalancer services found"
-
-          echo ""
-          echo "NGINX Ingress Controller Status:"
-          kubectl get svc -n ingress-nginx -o wide 2>/dev/null || echo "NGINX Ingress Controller not found"
-
-          echo ""
           echo "================= DEFAULT CREDENTIALS ================="
           ARGOCD_PASS=$(kubectl -n ${{ inputs.argocd_namespace }} get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || echo 'Not found')
           echo "ArgoCD -> Username: admin"
@@ -112,3 +91,5 @@ jobs:
           echo "Grafana -> Username: admin"
           echo "Grafana -> Password: ${{ secrets.GRAFANA_PASSWORD }}"
           echo "Prometheus -> No login needed (anonymous access by default)"
+          echo ""
+          echo "⚠️ Note: These endpoints might take a few minutes to become available after deployment."
