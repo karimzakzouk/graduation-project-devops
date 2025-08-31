@@ -15,9 +15,9 @@ cluster_version = "1.30"
 
 # Node Groups Configuration - OPTIMIZED FOR SPEED
 node_groups = {
-  # Single small node for faster provisioning
+  # Single medium node for faster provisioning
   general = {
-    instance_types = ["t3.small"] # Smaller instance = faster provisioning
+    instance_types = ["t3.medium"] # Medium instance = balanced performance
     capacity_type  = "ON_DEMAND"
     scaling_config = {
       desired_size = 1 # Single node for development

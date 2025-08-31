@@ -1,38 +1,4 @@
-resource "aws_eks_cluster" "main" {
-  name     = var.cluster_name
-  version  = var.cluster_version
-  role_arn = aws_iam_role.cluster.arn
-
-  access_config {
-    authentication_mode                         = "API_AND_CONFIG_MAP"
-    bootstrap_cluster_creator_admin_permissions = true
-  }
-
-  vpc_config {
-    subnet_ids = var.cluster_subnet_ids # Changed from var.subnet_ids
-  }
-
-  depends_on = [
-    aws_iam_role_policy_attachment.cluster_policy
-  ]
-
-  tags = {
-    "karpenter.sh/discovery" = var.cluster_name
-    "Name"                   = var.cluster_name
-  }
-}
-
-resource "aws_ec2_tag" "cluster_sg_karpenter" {
-  resource_id = aws_eks_cluster.main.vpc_config[0].cluster_security_group_id
-  key         = "karpenter.sh/discovery"
-  value       = var.cluster_name
-}
-# EKS OIDC Identity Provider
-resource "aws_iam_openid_connect_provider" "eks" {
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = ["9e99a48a9960b14926bb7f3b02e22da2b0ab7280"]
-  url             = aws_eks_cluster.main.identity[0].oidc[0].issuer
-}
+data "aws_caller_identity" "current" {}
 
 resource "aws_iam_role" "cluster" {
   name = "${var.cluster_name}-cluster-role"
@@ -56,9 +22,9 @@ resource "aws_iam_role" "cluster" {
 resource "aws_iam_role_policy_attachment" "cluster_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
   role       = aws_iam_role.cluster.name
+  
+  depends_on = [aws_iam_role.cluster]
 }
-
-
 
 resource "aws_iam_role" "node" {
   name = "${var.cluster_name}-node-role"
@@ -86,9 +52,51 @@ resource "aws_iam_role_policy_attachment" "node_policy" {
 
   policy_arn = each.value
   role       = aws_iam_role.node.name
+  
+  depends_on = [aws_iam_role.node]
 }
 
+resource "aws_eks_cluster" "main" {
+  name     = var.cluster_name
+  version  = var.cluster_version
+  role_arn = aws_iam_role.cluster.arn
 
+  access_config {
+    authentication_mode                         = "API_AND_CONFIG_MAP"
+    bootstrap_cluster_creator_admin_permissions = true
+  }
+
+  vpc_config {
+    subnet_ids = var.cluster_subnet_ids # Changed from var.subnet_ids
+  }
+
+  depends_on = [
+    aws_iam_role.cluster,
+    aws_iam_role_policy_attachment.cluster_policy
+  ]
+
+  tags = {
+    "karpenter.sh/discovery" = var.cluster_name
+    "Name"                   = var.cluster_name
+  }
+}
+
+# EKS OIDC Identity Provider
+resource "aws_iam_openid_connect_provider" "eks" {
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = ["9e99a48a9960b14926bb7f3b02e22da2b0ab7280"]
+  url             = aws_eks_cluster.main.identity[0].oidc[0].issuer
+  
+  depends_on = [aws_eks_cluster.main]
+}
+
+resource "aws_ec2_tag" "cluster_sg_karpenter" {
+  resource_id = aws_eks_cluster.main.vpc_config[0].cluster_security_group_id
+  key         = "karpenter.sh/discovery"
+  value       = var.cluster_name
+  
+  depends_on = [aws_eks_cluster.main]
+}
 
 resource "aws_eks_node_group" "main" {
   for_each        = var.node_groups
@@ -96,6 +104,7 @@ resource "aws_eks_node_group" "main" {
   node_group_name = each.key
   node_role_arn   = aws_iam_role.node.arn
   subnet_ids      = var.node_subnet_ids # Changed from var.subnet_ids
+  
   scaling_config {
     desired_size = each.value.scaling_config.desired_size
     max_size     = each.value.scaling_config.max_size
@@ -107,14 +116,18 @@ resource "aws_eks_node_group" "main" {
   }
 
   depends_on = [
+    aws_eks_cluster.main,
+    aws_iam_role.node,
     aws_iam_role_policy_attachment.node_policy
   ]
 }
 
 # Karpenter Node Instance Profile (reuse existing node role)
 resource "aws_iam_instance_profile" "karpenter_node" {
-  name = "KarpenterNodeInstanceProfile"
+  name = "KarpenterNodeInstanceProfile-${var.cluster_name}"
   role = aws_iam_role.node.name
+  
+  depends_on = [aws_iam_role.node]
 }
 
 # Karpenter Controller IAM Role
@@ -139,7 +152,13 @@ resource "aws_iam_role" "karpenter_controller" {
       }
     ]
   })
+  
+  depends_on = [
+    aws_eks_cluster.main,
+    aws_iam_openid_connect_provider.eks
+  ]
 }
+
 resource "aws_iam_role_policy" "karpenter_controller" {
   name = "KarpenterControllerPolicy"
   role = aws_iam_role.karpenter_controller.id
@@ -193,6 +212,8 @@ resource "aws_iam_role_policy" "karpenter_controller" {
       }
     ]
   })
+  
+  depends_on = [aws_iam_role.karpenter_controller]
 }
 
 # SQS Queue for Spot Interruption Notifications
@@ -200,5 +221,3 @@ resource "aws_sqs_queue" "karpenter_interruption" {
   name                      = "karpenter-interruption-queue-${var.cluster_name}"
   message_retention_seconds = 300
 }
-
-data "aws_caller_identity" "current" {}

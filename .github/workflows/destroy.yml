@@ -124,66 +124,73 @@ jobs:
       # ==================================================
       # PHASE 3: CLEAN UP KARPENTER RESOURCES
       # ==================================================
-      - name: Delete Karpenter Resources
+      - name: Delete Karpenter Resources (Legacy API)
         run: |
-          echo "🚗 Cleaning up Karpenter resources..."
+          echo "Cleaning up Karpenter resources (legacy API versions)..."
           
-          # Delete Karpenter custom resources first
-          echo "Deleting Karpenter NodePools and EC2NodeClasses..."
-          kubectl delete nodepool --all --ignore-not-found --timeout=60s || true
-          kubectl delete ec2nodeclass --all --ignore-not-found --timeout=60s || true
+          # Delete LEGACY Karpenter Provisioners (v1alpha5) - THIS IS WHAT YOU'RE USING
+          echo "Deleting legacy Karpenter Provisioners (v1alpha5)..."
+          kubectl delete provisioner ${{ vars.KARPENTER_NODEPOOL_NAME }} --ignore-not-found --timeout=60s || true
+          kubectl delete provisioner --all --ignore-not-found --timeout=60s || true
           
-          # Delete legacy Karpenter resources
-          echo "Deleting legacy Karpenter Provisioners and AWSNodeTemplates..."
-          kubectl delete provisioner ${{ vars.KARPENTER_NODEPOOL_NAME }} --ignore-not-found -n ${{ vars.KARPENTER_NAMESPACE }} --timeout=60s || true
-          kubectl delete provisioner --all -n ${{ vars.KARPENTER_NAMESPACE }} --ignore-not-found --timeout=60s || true
-          kubectl delete awsnodetemplate ${{ vars.KARPENTER_NODECLASS_NAME }} --ignore-not-found -n ${{ vars.KARPENTER_NAMESPACE }} --timeout=60s || true
-          kubectl delete awsnodetemplate --all -n ${{ vars.KARPENTER_NAMESPACE }} --ignore-not-found --timeout=60s || true
+          # Delete LEGACY AWSNodeTemplates (v1alpha1) - THIS IS WHAT YOU'RE USING
+          echo "Deleting legacy AWSNodeTemplates (v1alpha1)..."
+          kubectl delete awsnodetemplate ${{ vars.KARPENTER_NODECLASS_NAME }} --ignore-not-found --timeout=60s || true
+          kubectl delete awsnodetemplate --all --ignore-not-found --timeout=60s || true
           
-          echo "⏳ Waiting for Karpenter resources to be cleaned up..."
-          sleep 30
-          echo "✅ Karpenter resources cleanup completed"
+          # Remove finalizers from legacy resources if they're stuck
+          echo "Removing finalizers from stuck Provisioners..."
+          kubectl get provisioner -o name | xargs -r -I {} kubectl patch {} -p '{"metadata":{"finalizers":[]}}' --type=merge || true
+          
+          echo "Removing finalizers from stuck AWSNodeTemplates..."
+          kubectl get awsnodetemplate -o name | xargs -r -I {} kubectl patch {} -p '{"metadata":{"finalizers":[]}}' --type=merge || true
+          
+          echo "Waiting for Karpenter resources to be cleaned up..."
+          sleep 60
+          echo "Karpenter resources cleanup completed"
         continue-on-error: true
 
-      - name: Uninstall Karpenter Helm Release
+      - name: Force Delete Karpenter Nodes from Kubernetes
         run: |
-          echo "📦 Uninstalling Karpenter Helm release..."
-          helm uninstall karpenter -n ${{ vars.KARPENTER_NAMESPACE }} --timeout=300s || true
+          echo "Removing Karpenter-managed nodes from Kubernetes cluster..."
           
-          echo "⏳ Waiting for Karpenter pods to terminate..."
-          kubectl wait --for=delete pod -l app.kubernetes.io/name=karpenter -n ${{ vars.KARPENTER_NAMESPACE }} --timeout=120s || true
+          # Delete nodes that have Karpenter labels
+          kubectl get nodes -l karpenter.sh/provisioner-name --no-headers -o custom-columns=":metadata.name" | xargs -r kubectl delete node --timeout=60s || true
+          kubectl get nodes -l karpenter.sh/cluster=${{ vars.CLUSTER_NAME }} --no-headers -o custom-columns=":metadata.name" | xargs -r kubectl delete node --timeout=60s || true
           
-          echo "💥 Force deleting any remaining Karpenter pods..."
-          kubectl delete pods --all -n ${{ vars.KARPENTER_NAMESPACE }} --force --grace-period=0 || true
-          echo "✅ Karpenter Helm release uninstalled"
+          # Also try generic Karpenter node labels
+          kubectl get nodes -l node.kubernetes.io/instance-type --no-headers -o custom-columns=":metadata.name" | while read node; do
+            if kubectl describe node $node | grep -q "karpenter"; then
+              echo "Deleting Karpenter node: $node"
+              kubectl delete node $node --timeout=60s || true
+            fi
+          done || true
+          
+          echo "Node cleanup completed"
         continue-on-error: true
 
-      - name: Clean up Karpenter CRDs and Webhooks
+      - name: Clean up Karpenter CRDs and Webhooks (Kubectl Only)
         run: |
-          echo "🧹 Cleaning up Karpenter CRDs and webhooks..."
+          echo "Cleaning up Karpenter CRDs and webhooks..."
           
-          # Delete Karpenter CRDs
-          echo "Deleting Karpenter CRDs..."
+          # Delete Karpenter webhooks first (this is critical)
+          echo "Deleting Karpenter webhooks..."
+          kubectl delete validatingwebhookconfiguration validation.webhook.karpenter.sh --ignore-not-found || true
+          kubectl delete validatingwebhookconfiguration defaulting.webhook.karpenter.sh --ignore-not-found || true
+          kubectl delete mutatingwebhookconfiguration defaulting.webhook.karpenter.sh --ignore-not-found || true
+          
+          # Delete LEGACY Karpenter CRDs (what you're actually using)
+          echo "Deleting LEGACY Karpenter CRDs..."
           kubectl delete crd provisioners.karpenter.sh --ignore-not-found --timeout=60s || true
           kubectl delete crd awsnodetemplates.karpenter.k8s.aws --ignore-not-found --timeout=60s || true
-          kubectl delete crd nodepools.karpenter.sh --ignore-not-found --timeout=60s || true
-          kubectl delete crd ec2nodeclasses.karpenter.k8s.aws --ignore-not-found --timeout=60s || true
-          
-          # Delete Karpenter webhooks
-          echo "Deleting Karpenter webhooks..."
-          kubectl delete validatingwebhookconfiguration defaulting.webhook.karpenter.sh --ignore-not-found || true
-          kubectl delete validatingwebhookconfiguration validation.webhook.karpenter.sh --ignore-not-found || true
-          kubectl delete mutatingwebhookconfiguration defaulting.webhook.karpenter.sh --ignore-not-found || true
           
           # Remove finalizers from stuck CRDs
           echo "Removing finalizers from stuck Karpenter CRDs..."
           kubectl patch crd provisioners.karpenter.sh -p '{"metadata":{"finalizers":[]}}' --type=merge || true
           kubectl patch crd awsnodetemplates.karpenter.k8s.aws -p '{"metadata":{"finalizers":[]}}' --type=merge || true
-          kubectl patch crd nodepools.karpenter.sh -p '{"metadata":{"finalizers":[]}}' --type=merge || true
-          kubectl patch crd ec2nodeclasses.karpenter.k8s.aws -p '{"metadata":{"finalizers":[]}}' --type=merge || true
-          echo "✅ Karpenter CRDs and webhooks cleanup completed"
+          
+          echo "Karpenter CRDs and webhooks cleanup completed"
         continue-on-error: true
-
       # ==================================================
       # PHASE 4: UNINSTALL HELM RELEASES
       # ==================================================
