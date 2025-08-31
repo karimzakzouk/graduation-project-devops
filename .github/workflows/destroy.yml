@@ -424,117 +424,85 @@ jobs:
         run: |
           #!/bin/bash
           
-          echo "🗑️ Starting enhanced namespace deletion process..."
+          echo "Starting namespace deletion process..."
           
-          # Function to completely force delete a namespace
-          force_delete_namespace() {
+          # Function to delete a namespace with proper error handling
+          delete_namespace() {
             local ns=$1
-            echo "========== Processing namespace: $ns =========="
+            echo "Processing namespace: $ns"
             
+            # Check if namespace exists
             if ! kubectl get namespace "$ns" &>/dev/null; then
-              echo "✅ Namespace $ns does not exist, skipping..."
+              echo "Namespace $ns does not exist, skipping..."
               return 0
             fi
             
-            echo "📋 Current namespace status:"
-            kubectl get namespace $ns -o wide || true
+            echo "Namespace $ns exists, proceeding with deletion..."
             
-            # Step 1: Final resource cleanup in the namespace
-            echo "🧹 Final cleanup of all resources in namespace $ns..."
+            # Step 1: Remove finalizers from all resources
+            echo "Removing finalizers from resources in $ns..."
+            kubectl api-resources --verbs=list --namespaced -o name 2>/dev/null | \
+              grep -v events | \
+              xargs -I {} bash -c "kubectl get {} -n $ns -o name 2>/dev/null | xargs -I {} kubectl patch {} -n $ns -p '{\"metadata\":{\"finalizers\":[]}}' --type=merge 2>/dev/null || true"
             
-            # Remove finalizers from all resources in the namespace
-            for resource_type in $(kubectl api-resources --verbs=list --namespaced -o name 2>/dev/null | grep -v events); do
-              kubectl get $resource_type -n $ns -o json 2>/dev/null | \
-                jq -r '.items[]? | select(.metadata.finalizers) | .metadata.name' 2>/dev/null | \
-                while read resource_name; do
-                  if [[ -n "$resource_name" ]]; then
-                    echo "    Removing finalizers from $resource_type/$resource_name"
-                    kubectl patch $resource_type $resource_name -n $ns -p '{"metadata":{"finalizers":[]}}' --type=merge 2>/dev/null || true
-                  fi
-                done
-            done
-            
-            # Step 2: Try graceful deletion first
-            echo "🔄 Attempting graceful namespace deletion..."
-            kubectl delete namespace $ns --timeout=60s --ignore-not-found &
-            DELETE_PID=$!
-            
-            # Wait for graceful deletion
-            sleep 30
-            
-            # Step 3: If still exists, force delete
-            if kubectl get namespace $ns --ignore-not-found 2>/dev/null; then
-              echo "⚡ Graceful deletion failed, forcing deletion..."
-              
-              # Kill the background delete process
-              kill $DELETE_PID 2>/dev/null || true
-              
-              # Get current namespace JSON and remove finalizers
-              kubectl get namespace $ns -o json | \
-                jq 'del(.spec.finalizers[])' | \
-                kubectl replace --raw "/api/v1/namespaces/$ns/finalize" -f - 2>/dev/null || true
-              
-              # Alternative approach - patch the namespace directly
-              kubectl patch namespace $ns -p '{"metadata":{"finalizers":[]}}' --type=merge 2>/dev/null || true
-              
-              # Wait a bit more
-              sleep 15
-              
-              # Final check and force if needed
-              if kubectl get namespace $ns --ignore-not-found 2>/dev/null; then
-                echo "🚨 Trying nuclear option - direct deletion..."
-                
-                # Delete the namespace object directly
-                kubectl delete namespace $ns --force --grace-period=0 2>/dev/null || true
-                
-                # Patch with empty spec
-                kubectl patch namespace $ns -p '{"spec":{"finalizers":[]}}' --type=merge 2>/dev/null || true
-                kubectl patch namespace $ns -p '{"metadata":{"finalizers":[]}}' --type=merge 2>/dev/null || true
-                
-                sleep 10
-              fi
+            # Step 2: Delete the namespace with extended timeout
+            echo "Deleting namespace $ns..."
+            if kubectl delete namespace "$ns" --timeout=180s --ignore-not-found; then
+              echo "Successfully deleted namespace $ns"
+              return 0
             fi
             
-            # Final verification
-            if kubectl get namespace $ns --ignore-not-found 2>/dev/null; then
-              echo "❌ WARNING: Namespace $ns still exists after all attempts"
-              echo "📋 Final namespace details:"
-              kubectl get namespace $ns -o yaml || true
+            # Step 3: Force deletion if graceful deletion failed
+            echo "Graceful deletion failed, attempting force deletion..."
+            
+            # Remove namespace finalizers
+            kubectl patch namespace "$ns" -p '{"metadata":{"finalizers":[]}}' --type=merge 2>/dev/null || true
+            
+            # Force delete with zero grace period
+            kubectl delete namespace "$ns" --force --grace-period=0 2>/dev/null || true
+            
+            # Wait a moment and check
+            sleep 10
+            
+            if kubectl get namespace "$ns" &>/dev/null; then
+              echo "WARNING: Namespace $ns still exists after force deletion attempts"
               return 1
             else
-              echo "✅ Successfully deleted namespace $ns"
+              echo "Successfully force-deleted namespace $ns"
               return 0
             fi
           }
           
           # Array of namespaces to delete
-          NAMESPACES=("${{ vars.APP_NAMESPACE }}" "${{ vars.MONITORING_NAMESPACE }}" "${{ vars.ARGOCD_NAMESPACE }}" "ingress-nginx" "${{ vars.KARPENTER_NAMESPACE }}")
+          NAMESPACES=("my-solar-system-app-namespace" "my-solar-system-app-monitoring" "my-solar-system-app-argocd" "ingress-nginx" "karpenter")
+          
+          # Track failed deletions
+          FAILED_NAMESPACES=()
           
           # Delete each namespace
-          FAILED_NAMESPACES=()
           for ns in "${NAMESPACES[@]}"; do
             if [[ -n "$ns" ]]; then
-              if ! force_delete_namespace "$ns"; then
+              if ! delete_namespace "$ns"; then
                 FAILED_NAMESPACES+=("$ns")
               fi
-              echo ""
+              echo "----------------------------------------"
             fi
           done
           
           # Summary
-          echo "========== NAMESPACE CLEANUP SUMMARY =========="
-          echo "📊 Remaining namespaces:"
-          kubectl get namespaces || true
+          echo "CLEANUP SUMMARY"
+          echo "Remaining namespaces:"
+          kubectl get namespaces 2>/dev/null || echo "Could not list namespaces"
           
           if [[ ${#FAILED_NAMESPACES[@]} -eq 0 ]]; then
-            echo "✅ All target namespaces successfully deleted!"
+            echo "All target namespaces successfully deleted"
+            exit 0
           else
-            echo "❌ Failed to delete namespaces: ${FAILED_NAMESPACES[*]}"
-            echo "⚠️  You may need to check these manually after terraform destroy completes"
-            # Don't fail the workflow for namespace cleanup issues
+            echo "Failed to delete namespaces: ${FAILED_NAMESPACES[*]}"
+            echo "These may need manual cleanup"
+            # Don't fail the workflow - this is cleanup, not critical infrastructure
+            exit 0
           fi
-          
-          echo "✅ Namespace deletion process completed"
         continue-on-error: true
 
       # ==================================================
