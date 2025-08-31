@@ -1,3 +1,9 @@
+variable "region" {
+  description = "AWS region"
+  type        = string
+  default     = "us-east-1"
+}
+
 variable "vpc_cidr" {
   description = "CIDR Block for VPC"
   type        = string
@@ -47,6 +53,7 @@ variable "node_groups" {
       max_size     = number
       min_size     = number
     })
+    ssh_key_name = string
   }))
 
   default = {
@@ -58,6 +65,7 @@ variable "node_groups" {
         max_size     = 3
         min_size     = 1
       }
+      ssh_key_name = "MyPairKey"
     }
   }
 }

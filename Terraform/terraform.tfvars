@@ -1,6 +1,6 @@
 # terraform.tfvars - OPTIMIZED FOR SPEED
 # Infrastructure Configuration for Solar System App
-
+region           = "us-east-1"
 # Network Configuration - REDUCED TO 2 AZs
 vpc_cidr           = "10.0.0.0/16"
 availability_zones = ["us-east-1a", "us-east-1b"] # Reduced from 3 to 2 AZs
@@ -20,10 +20,12 @@ node_groups = {
     instance_types = ["t3.medium"] # Medium instance = balanced performance
     capacity_type  = "ON_DEMAND"
     scaling_config = {
-      desired_size = 1 # Single node for development
-      max_size     = 2 # Reduced max
+      desired_size = 2 # Single node for development
+      max_size     = 3 # Reduced max
       min_size     = 1
     }
+
+    ssh_key_name = "MyPairKey"
   }
 }
 
