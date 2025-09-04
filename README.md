@@ -13,7 +13,7 @@
 [![Prometheus](https://img.shields.io/badge/Prometheus-Monitoring-blue?style=flat-square&logo=prometheus)](https://prometheus.io/)
 [![Grafana](https://img.shields.io/badge/Grafana-Monitoring-blue?style=flat-square&logo=grafana)](https://grafana.com/)
 [![Helm](https://img.shields.io/badge/Helm-Kubernetes%20Package%20Manager-blue?style=flat-square&logo=helm)](https://helm.sh/)
-[![Docker](https://img.shields.io/badge/Docker-Container%20Platform-blue?style=flat-square&logo=docker)](https://docker.com/)
+[![Docker](https://img.shields.io/badge/Docker-Container%20Platform-blue?style=flat-square&logo=docker)](https://docker.com/) 
 
 **A comprehensive Python web application demonstrating enterprise-grade DevOps practices with a complete CI/CD pipeline, Infrastructure as Code, GitOps implementation, and comprehensive monitoring.**
 
