@@ -3,7 +3,7 @@ name: Docker Build and Push
 on:
   workflow_dispatch:
   workflow_call:
-
+  
 jobs:
   docker-build:
     name: Docker Build and Test
